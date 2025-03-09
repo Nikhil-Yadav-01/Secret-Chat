@@ -20,9 +20,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
-
+@Preview
 @Composable
 fun SearchBar(
     onSearchClick: (String) -> Unit = {}
@@ -49,7 +50,7 @@ fun SearchBar(
         modifier = Modifier
             .fillMaxWidth()
             .padding(8.dp)
-            .clip(RoundedCornerShape(24.dp))
+            .clip(RoundedCornerShape(percent = 50))
             .background(MaterialTheme.colorScheme.background),
         singleLine = true,
         keyboardOptions = KeyboardOptions.Default.copy(

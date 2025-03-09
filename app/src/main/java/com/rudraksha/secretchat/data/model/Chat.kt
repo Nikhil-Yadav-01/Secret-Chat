@@ -10,21 +10,24 @@ import java.util.UUID
 
 @TypeConverters(Converters::class)
 @Serializable
-@Entity(tableName = "chats")
+@Entity(
+    tableName = "chats",
+    primaryKeys = ["chatId"]
+)
 data class Chat(
-    @PrimaryKey val id: String = UUID.randomUUID().toString(), // Chat id
+    @PrimaryKey val chatId: String = UUID.randomUUID().toString(), // Chat id
     val name: String? = null, // Chat name
     val type: ChatType = ChatType.PRIVATE,
     // Store participants as a comma-separated string (use a TypeConverter if you prefer a List)
     val participants: String = "",
-    val createdBy: String, // Creator id (or username)
+    val createdBy: String, // Creator username
     val createdAt: Long = System.currentTimeMillis()
     // The messages list is excluded from the entity since messages are stored separately.
 )
 
 fun Chat.toChatItem(lastMessage: String, time: String, unreadCount: Int): ChatItem {
     return ChatItem(
-        id = this.id,
+        id = this.chatId,
         name = this.name ?: "",
         lastMessage = lastMessage,
         time = time,

@@ -1,20 +1,25 @@
 package com.rudraksha.secretchat.data.model
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverters
 import com.rudraksha.secretchat.data.converters.Converters
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import java.util.UUID
 
 @TypeConverters(Converters::class)
 @Serializable
-@Entity(tableName = "messages")
+@Entity(
+    tableName = "messages",
+    primaryKeys = ["messageId"],
+    foreignKeys = [ForeignKey(entity = Chat::class, parentColumns = ["chatId"], childColumns = ["chatId"] ) ]
+)
 data class Message(
-    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    @PrimaryKey val messageId: String = UUID.randomUUID().toString(),
     val senderId: String,
+    @ColumnInfo(name = "chatId") val chatId: String = "",
     // For Room, store receiversId as a comma-separated string; a TypeConverter can convert to List<String>
     val receiversId: String = "",
     val timestamp: Long = System.currentTimeMillis(),

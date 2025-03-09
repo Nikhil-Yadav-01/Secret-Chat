@@ -6,47 +6,199 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
-import com.rudraksha.secretchat.data.model.Chat
+import com.rudraksha.secretchat.data.model.FileMetadata
 import com.rudraksha.secretchat.data.model.Message
 import com.rudraksha.secretchat.navigation.NavigationManager
-import com.rudraksha.secretchat.navigation.Routes
 import com.rudraksha.secretchat.ui.theme.SecretChatTheme
-import com.rudraksha.secretchat.utils.createChatId
-import com.rudraksha.secretchat.viewmodels.ChatDetailViewModel
-import com.rudraksha.secretchat.viewmodels.ChatDetailViewModelFactory
-import com.rudraksha.secretchat.viewmodels.ChatListViewModel
-import com.rudraksha.secretchat.viewmodels.RegistrationViewModel
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.client.plugins.websocket.WebSockets
+import io.ktor.client.plugins.websocket.webSocketSession
+import io.ktor.websocket.CloseReason
+import io.ktor.websocket.Frame
+import io.ktor.websocket.WebSocketSession
+import io.ktor.websocket.close
+import io.ktor.websocket.readText
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import java.io.File
+
+class ChatClient(
+    private val username: String = "default",
+    private val messages: MutableList<Message> = mutableListOf()
+) {
+    private val client = HttpClient(OkHttp) {
+        engine {
+//            this.proxy = Proxy(Proxy.Type.HTTP, InetSocketAddress(HOST, PORT))
+        }
+        install(WebSockets) {
+        }
+    }
+    private var webSocketSession: WebSocketSession? = null
+    private var onMessageReceived: ((Message) -> Unit)? = null
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    var isConnected = MutableStateFlow(false)
+    private var connectionJob: Job? = null
+
+    fun connect(username: String = this.username, messages: MutableList<Message> = this.messages) {
+        // Cancel any existing connection job
+        connectionJob?.cancel()
+
+        connectionJob = scope.launch {
+            isConnected.update { true } // Update isConnected to true when the coroutine starts
+            try {
+                while (this.isActive) { // Use isActive to check if the coroutine is still active
+                    try {
+                        webSocketSession = client.webSocketSession(
+                            urlString = "wss://chat-server-h5u5.onrender.com/chat/${username}"
+                        )
+
+                        // Only one coroutine to handle incoming messages
+                        webSocketSession?.incoming?.consumeEach { frame ->
+                            when (frame) {
+                                is Frame.Text -> {
+                                    val message = Json.decodeFromString<Message>(frame.readText())
+                                    messages.add(message)
+                                    onMessageReceived?.invoke(message)
+                                }
+                                is Frame.Binary -> {
+                                    // Handle binary frames if needed
+                                }
+                                else -> {
+                                    // Handle other frame types if needed
+                                }
+                            }
+                        }
+                        // If we reach here, the connection was closed gracefully
+                        Log.d("WebSocket", "Connection closed gracefully")
+                        break // Exit the loop if the connection is closed gracefully
+                    } catch (e: Exception) {
+                        e.localizedMessage?.let { Log.e("Exception", it) }
+                        isConnected.update { false }
+                        // Check if the coroutine is still active before retrying
+                        if (isActive) {
+                            delay(5000) // Retry connection
+                        }
+                    } finally {
+                        // Ensure the session is closed in any case
+                        webSocketSession?.close()
+                    }
+                }
+            } finally {
+                isConnected.update { false } // Update isConnected to false when the coroutine ends
+            }
+        }
+    }
+
+    fun sendMessage(message: Message) {
+        scope.launch {
+            val jsonMessage = Json.encodeToString(message)
+            webSocketSession?.send(Frame.Text(jsonMessage))
+        }
+    }
+
+    fun setOnMessageReceivedListener(listener: (Message) -> Unit) {
+        onMessageReceived = listener
+    }
+
+    private fun receiveMessage(messages: MutableList<Message>) {
+        scope.launch {
+            webSocketSession?.incoming?.consumeEach { frame ->
+                when (frame) {
+                    is Frame.Text -> {
+                        val message = Json.decodeFromString<Message>(frame.readText())
+                        messages.add(message)
+                    }
+                    else -> {
+                    }
+                }
+            }
+        }
+    }
+
+    suspend fun sendFile(file: File, recipient: String) {
+        val fileSize = file.length()
+        val chunkSize = 1024 * 64 // 64 KB per chunk
+        val totalChunks = (fileSize + chunkSize - 1) / chunkSize
+        val fileMetadata = FileMetadata(
+            fileName = file.name,
+            fileType = file.extension,
+            fileSize = fileSize,
+            totalChunks = totalChunks
+        )
+
+        // Send metadata first as a JSON message
+        webSocketSession?.send(
+            Frame.Text(
+                Json.encodeToString(
+                    Message(
+                        senderId = userName,
+                        receiversId = recipient,
+                        content = Json.encodeToString(fileMetadata),
+                    )
+                )
+            )
+        )
+
+        // Read the file in chunks and send via WebSocket
+        file.inputStream().use { inputStream ->
+            val buffer = ByteArray(chunkSize)
+            var bytesRead: Int
+            var chunkIndex = 0
+
+            while ( inputStream.read(buffer).also { bytesRead = it } != -1) {
+                chunkIndex++
+                val chunkData = buffer.copyOf(bytesRead)
+                webSocketSession?.send(Frame.Binary(true, chunkData))
+                println("📤 Sent chunk $chunkIndex/$totalChunks")
+            }
+        }
+    }
+
+    suspend fun disconnect() {
+        connectionJob?.cancel()
+        webSocketSession?.close(
+            CloseReason(CloseReason.Codes.NORMAL, "Disconnecting the client")
+        )
+    }
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -59,70 +211,127 @@ class MainActivity : ComponentActivity() {
                     navController = navHostController,
                     context = this,
                 )
+//                ChatApp()
             }
         }
     }
 }
+var userName: String = ""
 
 @Composable
-fun RegistrationScreen(
-    navController: NavController, viewModel: RegistrationViewModel,
-) {
-    var email by remember { mutableStateOf("") }
+fun ChatApp() {
     var username by remember { mutableStateOf("") }
-    var fullName by remember { mutableStateOf("") }
+    var recipient by remember { mutableStateOf("") }
+    val messages = remember { mutableStateListOf<Message>() }
+    val chatClient = remember { ChatClient() }
+    val isConnected by chatClient.isConnected.collectAsState()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(text = "Register", modifier = Modifier.padding(bottom = 16.dp))
-
-        BasicTextField(
-            value = email,
-            onValueChange = { email = it },
+    if (!isConnected) {
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.LightGray)
-                .padding(8.dp),
-            singleLine = true
-        )
-        Spacer(modifier = Modifier.height(8.dp))
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+            verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center
+        ) {
+            TextField(
+                value = username,
+                onValueChange = { username = it },
+                placeholder = { Text("Enter your username") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(
+                    onDone = {
+                        CoroutineScope(Dispatchers.Default).launch {
+                            chatClient.connect(
+                                username,
+                                messages
+                            )
+                        }
+                    }
+                )
+            )
 
-        BasicTextField(
-            value = username,
-            onValueChange = { username = it },
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.LightGray)
-                .padding(8.dp),
-            singleLine = true
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        BasicTextField(
-            value = fullName,
-            onValueChange = { fullName = it },
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.LightGray)
-                .padding(8.dp),
-            singleLine = true
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(onClick = {
-            if(email.isNotBlank() && username.isNotBlank() && fullName.isNotBlank()){
-                viewModel.registerUser(email, username, fullName)
-
-                navController.navigate(Routes.Home.route) {
-                    popUpTo("registration") { inclusive = true }
-                }
+            Button(
+                onClick = {
+                    CoroutineScope(Dispatchers.Default).launch {
+                        chatClient.connect(
+                            username,
+                            messages
+                        )
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
+            ) {
+                Text("Connect")
             }
-        }, modifier = Modifier.fillMaxWidth()) {
-            Text(text = "Register")
+        }
+    } else {
+        Column(modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+        ) {
+            Spacer(modifier = Modifier.height(8.dp))
+
+            TextField(
+                value = recipient,
+                onValueChange = { recipient = it },
+                placeholder = { Text("Enter recipient username") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Next),
+            )
+
+            val message = remember { mutableStateOf("") }
+            TextField(
+                value = message.value,
+                onValueChange = { message.value = it },
+                placeholder = { Text("Enter message") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(onSend = {
+                    chatClient.sendMessage(
+                        Message(
+                            content = message.value,
+                            senderId = username,
+                            receiversId = recipient
+                        )
+                    )
+                    message.value = ""
+                })
+            )
+
+            Button(
+                onClick = {
+                    userName = username
+                    chatClient.sendMessage(
+                        Message(
+                            content = message.value,
+                            senderId = username,
+                            receiversId = recipient
+                        )
+                    )
+                    message.value = ""
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
+            ) {
+                Text("Send")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Chat Messages:")
+            messages.forEach { msg ->
+                Text("${msg.senderId}: ${msg.content}")
+            }
         }
     }
 }

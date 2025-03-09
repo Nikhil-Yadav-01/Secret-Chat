@@ -65,14 +65,10 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
 
     fun dismissDialog() {
-        scope.launch {
-            showDialog = false
-        }
+        scope.launch { showDialog = false }
     }
     fun launchDialog() {
-        scope.launch {
-            showDialog = true
-        }
+        scope.launch { showDialog = true }
     }
 
     Scaffold(

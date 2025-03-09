@@ -18,13 +18,14 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,6 +39,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.rudraksha.secretchat.data.model.Message
 import com.rudraksha.secretchat.data.remote.WebSocketManager
+import com.rudraksha.secretchat.utils.createChatId
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,15 +47,20 @@ import kotlinx.coroutines.launch
 @Composable
 fun InvisibleChatScreen(
     username: String = "",
-    webSocketManager: WebSocketManager = remember { WebSocketManager() },
     onNavIconClick: () -> Unit = {},
     context: Context = LocalContext.current
 ) {
     var recipient by remember { mutableStateOf("@") }
     var message by remember { mutableStateOf("") }
-    val messages: MutableList<Message> = remember { mutableListOf() }
-    val isConnected by webSocketManager.isConnected.collectAsState()
+    val webSocketManager: WebSocketManager = remember { WebSocketManager(username) }
+//    val isConnected by webSocketManager.isConnected.collectAsState()
+    val messages by webSocketManager.messages.collectAsState() // Observing messages
     val scope = rememberCoroutineScope()
+
+    // Ensure WebSocket connects when screen opens
+    LaunchedEffect(Unit) {
+        webSocketManager.connect()
+    }
 
     Scaffold(
         topBar = {
@@ -79,6 +86,49 @@ fun InvisibleChatScreen(
                     )
                 }
             )
+        },
+        bottomBar = {
+            NavigationBar {
+                OutlinedTextField(
+                    value = message,
+                    onValueChange = { message = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(shape = MaterialTheme.shapes.large),
+                    singleLine = true,
+                    placeholder = { Text("Enter message to send") },
+                    trailingIcon = {
+                        IconButton(
+                            onClick = {
+                                scope.launch {
+//                                    if (isConnected) {
+                                        val sendMessage = Message(
+                                            content = message,
+                                            senderId = username,
+                                            chatId = createChatId(listOf(username, recipient,)),
+                                            receiversId = recipient
+                                        )
+                                        webSocketManager.sendMessage(sendMessage)
+                                        message = ""
+//                                    } else {
+//                                        Toast.makeText(context, "Disconnected", Toast.LENGTH_SHORT)
+//                                            .show()
+//                                    }
+                                }
+                            },
+                            modifier = Modifier.padding(start = 2.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Send,
+                                contentDescription = "send",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(64.dp)
+                            )
+                        }
+                    },
+                    shape = MaterialTheme.shapes.large
+                )
+            }
         }
     ) { innerPadding ->
         Column(
@@ -100,44 +150,6 @@ fun InvisibleChatScreen(
                     }
                 }
             }
-
-            OutlinedTextField(
-                value = message,
-                onValueChange = { message = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(shape = MaterialTheme.shapes.large),
-                singleLine = true,
-                placeholder = { Text("Enter message to send") },
-                trailingIcon = {
-                    IconButton(
-                        onClick = {
-                            scope.launch {
-                                if (isConnected) {
-                                    val sendMessage = Message(
-                                        content = message,
-                                        senderId = username,
-                                        receiversId = listOf(recipient).joinToString(",")
-                                    )
-                                    webSocketManager.sendMessage(sendMessage)
-                                    message = ""
-                                } else {
-                                    Toast.makeText(context, "Disconnected", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        },
-                        modifier = Modifier.padding(start = 2.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Send,
-                            contentDescription = "send",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(64.dp)
-                        )
-                    }
-                },
-                shape = MaterialTheme.shapes.large
-            )
         }
     }
 }

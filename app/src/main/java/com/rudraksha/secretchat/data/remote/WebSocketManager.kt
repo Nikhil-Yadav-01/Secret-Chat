@@ -21,8 +21,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
@@ -43,102 +43,78 @@ class WebSocketManager(
     private var onMessageReceived: ((Message) -> Unit)? = null
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    private val _messages = MutableStateFlow<MutableList<Message>>(mutableListOf())
+    private val _messages = MutableStateFlow<List<Message>>(emptyList())
     val messages = _messages.asStateFlow()
 
-    var isConnected = MutableStateFlow(false)
-    private var connectionJob: Job? = null
+//    private val _isConnected = MutableStateFlow(false)
+//    val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
+//    private var connectionJob: Job? = null
 
-    private val _serverStatus = MutableStateFlow("Checking server...")
-    val serverStatus = _serverStatus.asStateFlow()
-/*
-    fun isServerRunning() {
+//    private val _serverStatus = MutableStateFlow("Checking server...")
+//    val serverStatus = _serverStatus.asStateFlow()
+
+    fun connect() {
+//        connectionJob?.cancel() // Cancel existing connection
+
         scope.launch {
-            try {
-                val request = Request.Builder().h
-                val response = client.newCall(request).execute()
-                val isRunning = response.isSuccessful
-                _serverStatus.value = if (isRunning) "Server is Online" else "Server is Offline"
-            } catch (e: IOException) {
-                _serverStatus.value = "Server is Offline"
-            }
-        }
-    }*/
+            var retryDelay = 5000L // Initial retry delay
 
-    fun connect(username: String = this.username) {
-        // Cancel any existing connection job
-        connectionJob?.cancel()
+            while (isActive) { // Keep retrying while coroutine is active
+                try {
+                    webSocketSession = client.webSocketSession(
+                        urlString = "wss://chat-server-h5u5.onrender.com/chat/${username}"
+                    )
 
-        connectionJob = scope.launch {
-            isConnected.update { true } // Update isConnected to true when the coroutine starts
-            try {
-                while (this.isActive) { // Use isActive to check if the coroutine is still active
-                    try {
-                        webSocketSession = client.webSocketSession(
-                            host = HOST, port = PORT, path = "/chat/$username"
-                        )
-
-                        // Only one coroutine to handle incoming messages
-                        webSocketSession?.incoming?.consumeEach { frame ->
-                            when (frame) {
-                                is Frame.Text -> {
-                                    val message = Json.decodeFromString<Message>(frame.readText())
-                                    _messages.value.add(message)
-                                    onMessageReceived?.invoke(message)
-                                }
-                                is Frame.Binary -> {
-                                    // Handle binary frames if needed
-                                }
-                                else -> {
-                                    // Handle other frame types if needed
-                                }
+                    webSocketSession?.incoming?.consumeEach { frame ->
+                        when (frame) {
+                            is Frame.Text -> {
+                                val message = Json.decodeFromString<Message>(frame.readText())
+                                _messages.value += message // Correct StateFlow update
+                                onMessageReceived?.let { it(message) }
+                                Log.d("ReceIncoming", message.toString())
+                            }
+                            is Frame.Binary -> {
+                                // Handle binary messages if needed
+                            }
+                            else -> {
+                                // Handle other frame types
                             }
                         }
-                        // If we reach here, the connection was closed gracefully
-                        Log.d("WebSocket", "Connection closed gracefully")
-                        break // Exit the loop if the connection is closed gracefully
-                    } catch (e: Exception) {
-                        e.localizedMessage?.let { Log.e("Exception", it) }
-                        isConnected.update { false }
-                        // Check if the coroutine is still active before retrying
-                        if (isActive) {
-                            delay(5000) // Retry connection
-                        }
-                    } finally {
-                        // Ensure the session is closed in any case
-                        webSocketSession?.close()
+                    }
+
+                    Log.d("WebSocket", "Connection closed gracefully")
+                    break // Stop retrying if the connection was closed properly
+
+                } catch (e: Exception) {
+                    Log.e("WebSocket", "Connection failed: ${e.localizedMessage}")
+//                    _isConnected.value = false
+
+                    if (isActive) {
+                        delay(retryDelay)
+                        retryDelay = minOf(retryDelay * 2, 60000L) // Exponential backoff (max 60s)
+                    }
+                } finally {
+                    webSocketSession?.let {
+                        if (it.isActive) it.close()
                     }
                 }
-            } finally {
-                isConnected.update { false } // Update isConnected to false when the coroutine ends
             }
+
+//            _isConnected.value = false
         }
     }
+
 
     fun sendMessage(message: Message) {
         scope.launch {
             val jsonMessage = Json.encodeToString(message)
             webSocketSession?.send(Frame.Text(jsonMessage))
+            Log.d("Sent", jsonMessage)
         }
     }
 
     fun setOnMessageReceivedListener(listener: (Message) -> Unit) {
         onMessageReceived = listener
-    }
-
-    private fun receiveMessage(messages: MutableList<Message>) {
-        scope.launch {
-            webSocketSession?.incoming?.consumeEach { frame ->
-                when (frame) {
-                    is Frame.Text -> {
-                        val message = Json.decodeFromString<Message>(frame.readText())
-                        messages.add(message)
-                    }
-                    else -> {
-                    }
-                }
-            }
-        }
     }
 
     suspend fun sendFile(file: File, recipient: String) {
@@ -181,7 +157,7 @@ class WebSocketManager(
     }
 
     suspend fun disconnect() {
-        connectionJob?.cancel()
+//        connectionJob?.cancel()
         webSocketSession?.close(
             CloseReason(CloseReason.Codes.NORMAL, "Disconnecting the client")
         )

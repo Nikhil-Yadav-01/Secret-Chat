@@ -1,38 +1,56 @@
 package com.rudraksha.secretchat.ui.screens.chat
 
 import android.text.format.DateFormat
+import android.widget.Toast
+import androidx.annotation.Dimension
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.EnhancedEncryption
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalBottomSheetProperties
+import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -41,25 +59,45 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.rudraksha.secretchat.R
 import com.rudraksha.secretchat.data.model.Message
+import com.rudraksha.secretchat.username
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Preview
 @Composable
 fun ChatScreen(
-    chatName: String = "",
     username: String = "",
-    sendMessage: (String) -> Unit = {},
-    onNavIconClick: () -> Unit = {},
-    receivers: String = "",
+    chatName: String = "",
+    sendMessage: (String) -> Unit,
+    onNavIconClick: () -> Unit,
+    messages: State<List<Message>>,
+    onMessageReaction: (Message, String) -> Unit = {_, _ -> },
 ) {
-    val messages = remember { mutableStateListOf<Message>() }
     val scope = rememberCoroutineScope()
+    var showBottomSheet by remember { mutableStateOf(false) }
+    val bottomSheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true
+    )
+    var sheetHeight by remember { mutableStateOf(0.dp) }
+    val animatedHeight by animateDpAsState(
+        targetValue = 400.dp,
+        animationSpec = tween(durationMillis = 700, easing = LinearOutSlowInEasing),
+        label = "Bottom sheet height"
+    )
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -75,101 +113,107 @@ fun ChatScreen(
                 }
             )
         },
-        content = { paddingValues ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
+        bottomBar = {
+            NavigationBar(
+                containerColor = Color.Transparent,
+                modifier = Modifier.padding(horizontal = 8.dp)
             ) {
-                LazyColumn(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    reverseLayout = true,
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
-                ) {
-                    items(messages) { message ->
-                        ChatBubble(message = message)
-                    }
-                }
                 MessageInput(
                     sendMessage = sendMessage,
                     scope = scope
                 )
             }
-        }
-    )
-}
-
-@Composable
-fun ChatBubble(message: Message) {
-    // Determine if the message was sent by the current user.
-    // Here, we assume that the current user's ID/username is "default".
-    // You might want to compare against a currentUserId from your repository.
-    val isSent = message.senderId == "default"
-    val bubbleColor = if (isSent) Color(0xFFDCF8C6) else Color.White
-    val textColor = if (isSent) Color.Black else Color.Black
-    val bubbleShape = if (isSent) {
-        RoundedCornerShape(topStart = 12.dp, topEnd = 0.dp, bottomEnd = 12.dp, bottomStart = 12.dp)
-    } else {
-        RoundedCornerShape(topStart = 0.dp, topEnd = 12.dp, bottomEnd = 12.dp, bottomStart = 12.dp)
-    }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = if (isSent) Arrangement.End else Arrangement.Start
-    ) {
-        Column(
-            modifier = Modifier
-                .background(bubbleColor, shape = bubbleShape)
-                .padding(8.dp)
-        ) {
-            Text(text = message.content ?: "", color = textColor)
-            Spacer(modifier = Modifier.height(4.dp))
-            // Display timestamp in a smaller font.
-            Text(
-                text = DateFormat.format("hh:mm a", message.timestamp).toString(),
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.Gray,
-                modifier = Modifier.align(Alignment.End)
-            )
-        }
-    }
-}
-
-@Composable
-fun MessageInput(sendMessage: (String) -> Unit, scope: CoroutineScope) {
-    var content by remember { mutableStateOf("") }
-
-    OutlinedTextField(
-        value = content,
-        onValueChange = { content = it },
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(shape = MaterialTheme.shapes.large),
-        singleLine = true,
-        placeholder = { Text("Enter message to send") },
-        trailingIcon = {
-            IconButton(
-                onClick = {
-                    scope.launch {
-                        sendMessage(content)
-                        content = ""
-                    }
-                },
-                modifier = Modifier.padding(start = 2.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Send,
-                    contentDescription = "send",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(64.dp)
-                )
-            }
         },
-        shape = MaterialTheme.shapes.large
-    )
+//        contentWindowInsets = WindowInsets.ime,
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Image(
+                painter = painterResource(R.drawable.profile_pic),
+                contentDescription = "Chat background",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.FillBounds
+            )
+            LazyColumn(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize(),
+                reverseLayout = true,
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Top
+            ) {
+                items(messages.value) { message ->
+                    if (message.senderId == "Server" && message.content != null) {
+                        Toast.makeText(
+                            context, message.content, Toast.LENGTH_SHORT
+                        ).show()
+                    } else {
+                        ChatBubble(
+                            message = message,
+                            byMe = message.senderId == username
+                        )
+                    }
+                }
+                item {
+                    EncryptionNotice(
+                        text = "Messages and calls are end-to-end encrypted.",
+                        onLearnMoreClicked = {
+                            scope.launch { showBottomSheet = true }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp)
+                    )
+                }
+            }
+        }
+
+        if (showBottomSheet) {
+            LaunchedEffect(Unit) {
+                sheetHeight = animatedHeight
+            }
+            ModalBottomSheet(
+                onDismissRequest = {
+                    showBottomSheet = false
+                    sheetHeight = 0.dp
+                },
+                sheetState = bottomSheetState,
+                properties = ModalBottomSheetProperties(
+                    shouldDismissOnBackPress = true,
+                ),
+                modifier = Modifier.height(sheetHeight)
+            ) {
+                BottomSheetContent {
+                    scope.launch {
+                        bottomSheetState.hide()
+                        showBottomSheet = false
+                    }
+                }
+            }
+        }
+    }
 }
 
+@Preview
+@Composable
+fun ChatPreview() {
+    val state = MutableStateFlow(listOf(
+        Message(content = "a", senderId = "", timestamp = 1000000L),
+        Message(content = "a", senderId = "", timestamp = 2000000L),
+        Message(content = "a", senderId = "A", timestamp = 3000000L),
+        Message(senderId = "", timestamp = 4000000L),
+        Message(senderId = "A", timestamp = 8000000L),
+        Message(senderId = "A", timestamp = 10000000L),
+    ).sortedBy { it.timestamp }.reversed())
+
+    ChatScreen(
+        username = "A",
+        chatName = "Chat Name",
+        sendMessage = {},
+        onNavIconClick = {},
+        messages = state.collectAsState(),
+        onMessageReaction = {_, _ ->}
+    )
+}
