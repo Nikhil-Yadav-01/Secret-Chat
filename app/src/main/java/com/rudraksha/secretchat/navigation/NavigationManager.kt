@@ -17,14 +17,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.rudraksha.secretchat.data.model.Chat
 import com.rudraksha.secretchat.data.model.User
 import com.rudraksha.secretchat.data.model.toChatItem
-import com.rudraksha.secretchat.data.remote.WebSocketManager
 import com.rudraksha.secretchat.ui.screens.authentication.LoginScreen
 import com.rudraksha.secretchat.ui.screens.authentication.RegisterScreen
 import com.rudraksha.secretchat.ui.screens.chat.ChatScreen
@@ -32,8 +30,6 @@ import com.rudraksha.secretchat.ui.screens.chat.InvisibleChatScreen
 import com.rudraksha.secretchat.ui.screens.home.HomeScreen
 import com.rudraksha.secretchat.viewmodels.AuthViewModel
 import com.rudraksha.secretchat.utils.createChatId
-import com.rudraksha.secretchat.utils.getReceivers
-import com.rudraksha.secretchat.utils.isUserInChat
 import com.rudraksha.secretchat.viewmodels.ChatDetailViewModel
 import com.rudraksha.secretchat.viewmodels.ChatDetailViewModelFactory
 import com.rudraksha.secretchat.viewmodels.ChatListViewModel
@@ -41,6 +37,7 @@ import com.rudraksha.secretchat.viewmodels.InvisibleChatViewModel
 import com.rudraksha.secretchat.viewmodels.InvisibleChatViewModelFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 
 @Composable
@@ -51,48 +48,40 @@ fun NavigationManager(
     val chatListViewModel: ChatListViewModel = viewModel()
     val authViewModel: AuthViewModel = viewModel()
 
-//    val currentUser by chatListViewModel.registeredUser.collectAsStateWithLifecycle()
-    var currentUser by remember { mutableStateOf<User?>(null) }
+    val currentUser by authViewModel.currentUser.collectAsState()
     val chatList by chatListViewModel.chatList.collectAsStateWithLifecycle()
 
     var insertedSelfChat by remember { mutableStateOf(false) }
 
     // Ensure registered user is always fetched
     LaunchedEffect(Unit) {
-        chatListViewModel.getRegisteredUser()
+        authViewModel.getCurrentUser()
     }
 
     fun insertSelfChat(user: User) {
         val uname = user.username
-        if (!chatList.any { isUserInChat(it.chatId, uname) }) {
+        if (chatList.find { it.chatId == createChatId(listOf(uname)) } == null) {
             chatListViewModel.addChat(
                 Chat(
                     chatId = createChatId(listOf(uname)),
-                    name = "You ($uname)",
+                    name = "You (${user.fullName})",
                     createdBy = uname,
                     participants = uname
                 )
             )
             Log.d("Inserted", "Self Chat")
             insertedSelfChat = true
+        } else {
+            Log.d("Found", chatList.find { it.chatId == uname }.toString())
         }
     }
 
-    // Ensure self-chat is inserted once
-    LaunchedEffect(currentUser, chatList) {
-        Log.d("Recomposed", "Launched Effect")
+    LaunchedEffect(currentUser) {
+        Log.d("Recomposed", "currentUser = ${currentUser?.username}")
         currentUser?.let { user ->
-            if (!insertedSelfChat) {
-                withContext(Dispatchers.Unconfined) {
-                    insertSelfChat(user)
-                }
+            withContext(Dispatchers.IO) {
+                insertSelfChat(user)
             }
-        }
-    }
-
-    suspend fun updateCurrentUser(user: User) {
-        withContext(Dispatchers.Unconfined) {
-            currentUser = user
         }
     }
 
@@ -101,17 +90,27 @@ fun NavigationManager(
         startDestination = Routes.Splash.route // Start with SplashScreen
     ) {
         composable(Routes.Splash.route) {
-            SplashScreen(navController, chatListViewModel, ::updateCurrentUser)
+            SplashScreen(
+                navigateToRegister = {
+                    navController.navigate(Routes.Registration.route) {
+                        popUpTo(Routes.Splash.route) { inclusive = true } // Prevent going back to Splash
+                    }
+                },
+                navigateToHome = {
+                    navController.navigate(Routes.Home.route) {
+                        popUpTo(Routes.Splash.route) { inclusive = true }
+                    }
+                },
+                observeCurrentUser = authViewModel.currentUser,
+            )
         }
+
         composable(Routes.Registration.route) {
             RegisterScreen(
                 register = authViewModel::register,
                 observeRegisterState = authViewModel.registerState.collectAsStateWithLifecycle(),
-                observeRegisteredUser = authViewModel.currentUser.collectAsStateWithLifecycle(),
                 onNavigateToLogin = { navController.navigate(Routes.Login.route) },
-                onRegisterSuccess = { user ->
-                    currentUser = user
-//                    insertSelfChat(user)
+                onRegisterSuccess = {
                     navController.navigate(Routes.Home.route) {
                         popUpTo(Routes.Registration.route) { inclusive = true }
                     }
@@ -124,12 +123,7 @@ fun NavigationManager(
                 login = authViewModel::login,
                 observeLoginState = authViewModel.loginState.collectAsStateWithLifecycle(),
                 navigateToRegister = { navController.navigateUp() },
-                onLoginSuccess = { email ->
-                    authViewModel.getUserByEmail(email)
-                    currentUser = authViewModel.currentUser.value
-//                    if (user != null) {
-//                        insertSelfChat(user)
-//                    }
+                onLoginSuccess = {
                     navController.navigate(Routes.Home.route) {
                         popUpTo(Routes.Login.route) { inclusive = true }
                     }
@@ -138,22 +132,23 @@ fun NavigationManager(
         }
 
         composable(Routes.Home.route) {
-            val user = chatListViewModel.registeredUser.collectAsState().value
             LaunchedEffect(Unit) {
-                user?.let {
-                    updateCurrentUser(it)
-                }
                 chatListViewModel.getAllChats() // Ensure chat list is always updated
             }
 
             HomeScreen(
                 navController = navController,
-                onChatItemClick = { chatId -> navController.navigate("${Routes.Chat.route}/$chatId") },
+                onChatItemClick = { chatId ->
+                    Log.d("ChatItemClick", "0")
+                    navController.navigate("${Routes.Chat.route}/$chatId")
+                },
                 chatList = chatList.map { it.toChatItem(lastMessage = "LAST", time = "TIME", unreadCount = 0) }
             )
         }
 
-        composable("${Routes.Chat.route}/{chatId}") { backStackEntry ->
+        composable(
+            route = "${Routes.Chat.route}/{chatId}"
+        ) { backStackEntry ->
             val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
             val chatDetailViewModel: ChatDetailViewModel = viewModel(
                 factory = ChatDetailViewModelFactory(
@@ -162,13 +157,11 @@ fun NavigationManager(
                 )
             )
 
-            val webSocketManager: WebSocketManager = remember { WebSocketManager(currentUser?.username ?: "default") }
-            val messages = webSocketManager.messages.collectAsState() // Observing messages
+            val messages = chatDetailViewModel.messages // Observing messages
             LaunchedEffect(Unit) {
-                webSocketManager.connect()
+                chatListViewModel.getAllChats()
             }
 
-            val receivers = getReceivers(chatId, currentUser?.username ?: "default")
             ChatScreen(
                 username = currentUser?.username ?: "default",
                 chatName = chatList.find { it.chatId == chatId }?.name ?: "Default Chat",
@@ -178,7 +171,7 @@ fun NavigationManager(
                 onNavIconClick = {
                     navController.navigateUp()
                 },
-                messages = messages,
+                messages = messages.collectAsStateWithLifecycle(),
                 onMessageReaction = { message, reaction ->
 //                    chatDetailViewModel.reactToMessage(message, reaction)
                 },
@@ -217,11 +210,14 @@ fun NavigationManager(
                 )
             )
 
-            val webSocketManager: WebSocketManager = remember { WebSocketManager(currentUser?.username ?: "default") }
-            val messages = webSocketManager.messages.collectAsState() // Observing messages
-            LaunchedEffect(Unit) {
-                webSocketManager.connect()
-            }
+//            val webSocketManager: WebSocketManager = remember {
+//                WebSocketManager(currentUser?.username ?: "default")
+//            }
+//            Log.d("WSMNav", webSocketManager.username)
+//            val messages = webSocketManager.messages.collectAsState() // Observing messages
+//            LaunchedEffect(Unit) {
+//                webSocketManager.connect()
+//            }
 
             InvisibleChatScreen(
 //                messages = messages,
@@ -240,24 +236,17 @@ fun NavigationManager(
 
 @Composable
 fun SplashScreen(
-    navController: NavController, userViewModel: ChatListViewModel,
-    updateCurrentUser: suspend (User) -> Unit = {}
+    navigateToRegister: () -> Unit,
+    navigateToHome: () -> Unit,
+    observeCurrentUser: StateFlow<User?>,
 ) {
-    val currentUser by userViewModel.registeredUser.collectAsState()
-
+    val currentUser = observeCurrentUser.collectAsState().value
     LaunchedEffect(currentUser) {
         delay(500) // Optional: Show splash for a bit
         if (currentUser == null) {
-            navController.navigate(Routes.Registration.route) {
-                popUpTo(Routes.Splash.route) { inclusive = true } // Prevent going back to Splash
-            }
+            navigateToRegister()
         } else {
-            currentUser?.let {
-                updateCurrentUser(it)
-                navController.navigate(Routes.Home.route) {
-                    popUpTo(Routes.Splash.route) { inclusive = true }
-                }
-            }
+            navigateToHome()
         }
     }
 

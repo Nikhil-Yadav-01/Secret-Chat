@@ -3,8 +3,10 @@ package com.rudraksha.secretchat.data.remote
 import android.util.Log
 import com.rudraksha.secretchat.HOST
 import com.rudraksha.secretchat.PORT
+import com.rudraksha.secretchat.data.WebSocketData
 import com.rudraksha.secretchat.data.model.FileMetadata
 import com.rudraksha.secretchat.data.model.Message
+import com.rudraksha.secretchat.utils.createChatId
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.websocket.WebSockets
@@ -31,6 +33,7 @@ import java.io.File
 
 class WebSocketManager(
     val username: String = "default",
+    val password: String = "default",
 ) {
     private val client = HttpClient(OkHttp) {
         engine {
@@ -39,6 +42,7 @@ class WebSocketManager(
         install(WebSockets) {
         }
     }
+    private val json = Json { ignoreUnknownKeys = true }
     private var webSocketSession: WebSocketSession? = null
     private var onMessageReceived: ((Message) -> Unit)? = null
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -61,9 +65,16 @@ class WebSocketManager(
 
             while (isActive) { // Keep retrying while coroutine is active
                 try {
+                    // Close previous session if it exists
+                    webSocketSession?.let {
+                        if (it.isActive) it.close()
+                    }
                     webSocketSession = client.webSocketSession(
+//                        urlString = "ws://192.168.43.63:8080/chat/${username}"
                         urlString = "wss://chat-server-h5u5.onrender.com/chat/${username}"
                     )
+                    // WebSocket connected successfully, reset retry delay
+                    retryDelay = 5000L
 
                     webSocketSession?.incoming?.consumeEach { frame ->
                         when (frame) {
@@ -72,6 +83,50 @@ class WebSocketManager(
                                 _messages.value += message // Correct StateFlow update
                                 onMessageReceived?.let { it(message) }
                                 Log.d("ReceIncoming", message.toString())
+/*
+                                val receivedText = frame.readText()
+                                val data = json.decodeFromString<WebSocketData>(receivedText)
+                                when (data) {
+                                    is WebSocketData.JoinRequest -> {
+                                    }
+
+                                    is WebSocketData.JoinResponse -> {
+                                    }
+
+                                    is WebSocketData.Message -> {
+                                        val participants = data.receivers.toMutableList()
+                                        if (participants.add(data.sender)) {
+                                            val receivedMessage = Message(
+                                                messageId = data.id,
+                                                senderId = data.sender,
+                                                chatId = createChatId(participants),
+                                                receiversId = data.receivers.joinToString(","),
+                                                timestamp = data.timestamp,
+                                                content = data.content,
+                                            )
+                                            _messages.value += receivedMessage
+                                            onMessageReceived?.let { it(message) }
+                                            Log.d("WSDMIn", message.toString())
+                                        }
+                                    }
+
+                                    is WebSocketData.GetUsers -> {
+                                    }
+
+                                    is WebSocketData.TypingStatus -> {
+                                    }
+
+                                    is WebSocketData.Acknowledgment -> {
+                                        println("Message ${data.messageId} marked as ${data.status}")
+                                    }
+
+                                    is WebSocketData.Error -> {
+                                        println("Error received: ${data.errorMessage}")
+                                    }
+
+                                    else -> Unit
+                                }*/
+
                             }
                             is Frame.Binary -> {
                                 // Handle binary messages if needed
@@ -106,10 +161,20 @@ class WebSocketManager(
 
 
     fun sendMessage(message: Message) {
+        Log.d("Sending", "1")
         scope.launch {
-            val jsonMessage = Json.encodeToString(message)
-            webSocketSession?.send(Frame.Text(jsonMessage))
-            Log.d("Sent", jsonMessage)
+            Log.d("Sending", "2")
+            webSocketSession?.let {
+                Log.d("Sending", "3")
+                val jsonMessage = json.encodeToString(message)
+                if (it.isActive) {
+                    Log.d("Sending", "4")
+                    it.send(Frame.Text(jsonMessage))
+                    Log.d("Sent", jsonMessage)
+                } else {
+                    Log.e("WebSocket", "Cannot send message: WebSocket is closed")
+                }
+            }
         }
     }
 

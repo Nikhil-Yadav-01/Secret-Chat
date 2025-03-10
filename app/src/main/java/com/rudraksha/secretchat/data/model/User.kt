@@ -11,12 +11,11 @@ import kotlinx.serialization.Serializable
 @Serializable
 @Entity(
     tableName = "users",
-    primaryKeys = ["id", "username"],
 )
 data class User(
     @PrimaryKey(autoGenerate = true) val userId: Int = 0,
-    @PrimaryKey val email: String = "",
-    @PrimaryKey val username: String = "",
+    val email: String = "",
+    val username: String = "",
     val fullName: String = "",
     val online: Boolean = false,
     val description: String = "",
@@ -24,9 +23,9 @@ data class User(
     val contacts: String = ""// Comma separated list of user ids
 )
 
-@Entity(tableName = "contacts",
-    primaryKeys = ["userId", "contactId"],
-    foreignKeys = [ForeignKey(entity = User::class, parentColumns = ["username"], childColumns = ["username"])])
+@Entity(
+    tableName = "contacts",
+)
 data class Contact(
     @PrimaryKey val username: String,
     val contactUsernames: String

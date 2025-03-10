@@ -13,8 +13,6 @@ import java.util.UUID
 @Serializable
 @Entity(
     tableName = "messages",
-    primaryKeys = ["messageId"],
-    foreignKeys = [ForeignKey(entity = Chat::class, parentColumns = ["chatId"], childColumns = ["chatId"] ) ]
 )
 data class Message(
     @PrimaryKey val messageId: String = UUID.randomUUID().toString(),

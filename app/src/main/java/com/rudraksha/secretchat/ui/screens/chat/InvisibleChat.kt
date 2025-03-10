@@ -30,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,15 +51,16 @@ fun InvisibleChatScreen(
     onNavIconClick: () -> Unit = {},
     context: Context = LocalContext.current
 ) {
-    var recipient by remember { mutableStateOf("@") }
+    var recipient by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
     val webSocketManager: WebSocketManager = remember { WebSocketManager(username) }
 //    val isConnected by webSocketManager.isConnected.collectAsState()
     val messages by webSocketManager.messages.collectAsState() // Observing messages
     val scope = rememberCoroutineScope()
 
-    // Ensure WebSocket connects when screen opens
-    LaunchedEffect(Unit) {
+    val currentUsername by rememberUpdatedState(username)
+    // Ensure WebSocket connects when screen open
+    LaunchedEffect(Unit, currentUsername) {
         webSocketManager.connect()
     }
 
@@ -102,14 +104,19 @@ fun InvisibleChatScreen(
                             onClick = {
                                 scope.launch {
 //                                    if (isConnected) {
+                                    if (recipient.isBlank() || recipient == "@") {
+                                        Toast.makeText(context, "Enter a valid recipient!", Toast.LENGTH_SHORT).show()
+                                    } else {
                                         val sendMessage = Message(
                                             content = message,
                                             senderId = username,
-                                            chatId = createChatId(listOf(username, recipient,)),
+                                            chatId = createChatId(listOf(username, recipient)),
                                             receiversId = recipient
                                         )
                                         webSocketManager.sendMessage(sendMessage)
                                         message = ""
+                                    }
+
 //                                    } else {
 //                                        Toast.makeText(context, "Disconnected", Toast.LENGTH_SHORT)
 //                                            .show()

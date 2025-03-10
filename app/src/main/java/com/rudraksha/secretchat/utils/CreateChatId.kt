@@ -15,5 +15,5 @@ fun getChatParticipants(chatId: String): List<String> {
 fun getReceivers(chatId: String, username: String): String {
     val list = chatId.split("^").toMutableList()
     if (list.size > 1) list.remove(username)
-    return list.joinToString(",")
+    return list.sorted().joinToString(",")
 }

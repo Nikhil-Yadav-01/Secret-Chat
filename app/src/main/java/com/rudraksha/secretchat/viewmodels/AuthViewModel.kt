@@ -1,6 +1,7 @@
 package com.rudraksha.secretchat.viewmodels
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.rudraksha.secretchat.data.model.User
@@ -25,10 +26,14 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val _currentUser = MutableStateFlow<User?>(null)
     val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
 
-    fun getUserByEmail(email: String) {
+    init {
+        getCurrentUser()
+    }
+
+    fun getCurrentUser() {
         viewModelScope.launch {
             _currentUser.value = withContext(Dispatchers.IO) {
-                userDao.getUserByEmail(email)
+                userDao.getRegisteredUser()
             }
         }
     }
@@ -110,6 +115,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     updateLoginState("User not found")
                 } else {
                     updateLoginState("Login successful")
+                    _currentUser.value = user
                 }
             }
         }
@@ -123,9 +129,15 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             if (!isValid) return@launch
 
             withContext(Dispatchers.IO) {
-                val existingUser = userDao.getUserByEmail(email)
-                if (existingUser != null) {
-                    updateRegisterState("User already exists")
+                val existingUserByEmail = userDao.getUserByEmail(email)
+                val existingUserByUsername = userDao.getUserByUsername(username)
+
+                if (existingUserByUsername != null) {
+                    updateRegisterState("User already exists with same username")
+                    return@withContext
+                }
+                if (existingUserByEmail != null) {
+                    updateRegisterState("User already exists with same email")
                     return@withContext
                 }
 
@@ -134,6 +146,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 try {
                     userDao.insertUser(newUser)
                     _currentUser.value = newUser
+                    Log.d("User 1", userDao.getRegisteredUser().toString())
+                    Log.d("Users", userDao.getAllUsers().toString())
                     updateRegisterState("Registration successful")
                 } catch (e: Exception) {
                     updateRegisterState("Error: ${e.localizedMessage}")

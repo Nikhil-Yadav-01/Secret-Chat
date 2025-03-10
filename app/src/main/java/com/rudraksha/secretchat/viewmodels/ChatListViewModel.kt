@@ -1,9 +1,8 @@
 package com.rudraksha.secretchat.viewmodels
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.rudraksha.secretchat.database.ChatDatabase
 import com.rudraksha.secretchat.data.model.Chat
@@ -15,13 +14,9 @@ import kotlinx.coroutines.launch
 
 class ChatListViewModel(application: Application) : AndroidViewModel(application) {
     private val chatDao = ChatDatabase.getDatabase(application).chatDao()
-    private val userDao = ChatDatabase.getDatabase(application).userDao()
 
     private val _chatList = MutableStateFlow<List<Chat>>(emptyList())
     val chatList: StateFlow<List<Chat>> = _chatList.asStateFlow()
-
-    private val _registeredUser = MutableStateFlow<User?>(null)
-    val registeredUser: StateFlow<User?> = _registeredUser.asStateFlow()
 
     init {
         getAllChats()
@@ -29,10 +24,7 @@ class ChatListViewModel(application: Application) : AndroidViewModel(application
 
     fun addChat(chat: Chat) {
         viewModelScope.launch { chatDao.insertChat(chat) }
-    }
-
-    fun getRegisteredUser() {
-        viewModelScope.launch { _registeredUser.value = userDao.getRegisteredUser() }
+        Log.d("CLVM_add", "Chat added: $chat")
     }
 
     fun getAllChats() {

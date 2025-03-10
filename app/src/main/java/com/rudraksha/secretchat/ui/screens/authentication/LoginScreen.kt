@@ -22,7 +22,6 @@ import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,10 +42,10 @@ import kotlinx.coroutines.launch
 //@Preview
 @Composable
 fun LoginScreen(
-    login: (String, String) -> Unit = {_, _ -> },
+    login: (String, String) -> Unit = { _, _ -> },
     observeLoginState: State<String>,
     navigateToRegister: () -> Unit = {},
-    onLoginSuccess: (String) -> Unit = {}
+    onLoginSuccess: () -> Unit = {}
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -62,7 +61,7 @@ fun LoginScreen(
     }
     LaunchedEffect(loginState) {
         if (loginState == "Login successful") {
-            onLoginSuccess(email)
+            onLoginSuccess()
         }
         if (loginState.isNotEmpty()) {
             Toast.makeText(context, loginState, Toast.LENGTH_SHORT).show()

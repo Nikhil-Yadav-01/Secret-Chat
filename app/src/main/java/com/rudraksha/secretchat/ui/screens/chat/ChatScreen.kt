@@ -1,49 +1,29 @@
 package com.rudraksha.secretchat.ui.screens.chat
 
-import android.text.format.DateFormat
 import android.widget.Toast
-import androidx.annotation.Dimension
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.EnhancedEncryption
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -57,23 +37,15 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.rudraksha.secretchat.R
 import com.rudraksha.secretchat.data.model.Message
-import com.rudraksha.secretchat.username
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -83,8 +55,8 @@ fun ChatScreen(
     chatName: String = "",
     sendMessage: (String) -> Unit,
     onNavIconClick: () -> Unit,
-    messages: State<List<Message>>,
-    onMessageReaction: (Message, String) -> Unit = {_, _ -> },
+    messages: State<List<Message>?>,
+    onMessageReaction: (Message, String) -> Unit = { _, _ -> },
 ) {
     val scope = rememberCoroutineScope()
     var showBottomSheet by remember { mutableStateOf(false) }
@@ -143,19 +115,21 @@ fun ChatScreen(
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Top
-            ) {
-                items(messages.value) { message ->
-                    if (message.senderId == "Server" && message.content != null) {
-                        Toast.makeText(
-                            context, message.content, Toast.LENGTH_SHORT
-                        ).show()
-                    } else {
-                        ChatBubble(
-                            message = message,
-                            byMe = message.senderId == username
-                        )
+            ) {/*
+                messages.value?.let { it ->
+                    items(it) { message ->
+                        if (message.senderId == "Server" && message.content != null) {
+                            Toast.makeText(
+                                context, message.content, Toast.LENGTH_SHORT
+                            ).show()
+                        } else {
+                            ChatBubble(
+                                message = message,
+                                byMe = message.senderId == username
+                            )
+                        }
                     }
-                }
+                }*/
                 item {
                     EncryptionNotice(
                         text = "Messages and calls are end-to-end encrypted.",
@@ -214,6 +188,6 @@ fun ChatPreview() {
         sendMessage = {},
         onNavIconClick = {},
         messages = state.collectAsState(),
-        onMessageReaction = {_, _ ->}
+        onMessageReaction = { _, _ ->}
     )
 }

@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
@@ -15,6 +17,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.*
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.rudraksha.secretchat.data.model.User
 import kotlinx.coroutines.launch
 
@@ -22,40 +25,27 @@ import kotlinx.coroutines.launch
 fun RegisterScreen(
     register: (String, String, String, String, String) -> Unit,
     observeRegisterState: State<String>,
-    observeRegisteredUser: State<User?>,
     onNavigateToLogin: () -> Unit = {},
-    onRegisterSuccess: (User) -> Unit = {}
+    onRegisterSuccess: () -> Unit = {}
 ) {
     var fullName by remember { mutableStateOf("") }
-    var username by remember { mutableStateOf("@") }
+    var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
     val registerState by observeRegisterState
-    val registeredUser by observeRegisteredUser
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-
-    // Ensure username starts with "@"
-    LaunchedEffect(username) {
-        if (username.isNotEmpty() && !username.startsWith("@")) {
-            username = "@$username"
-        }
-    }
 
     // Show toast for registration errors/success
     LaunchedEffect(registerState) {
         if (registerState.isNotEmpty()) {
             Toast.makeText(context, registerState, Toast.LENGTH_SHORT).show()
         }
-    }
-
-    // Handle successful registration
-    LaunchedEffect(registeredUser) {
-        registeredUser?.let {
-            onRegisterSuccess(it)
+        if (registerState == "Registration successful") {
+            onRegisterSuccess()
         }
     }
 
@@ -69,6 +59,12 @@ fun RegisterScreen(
         TextField(
             value = fullName,
             onValueChange = { fullName = it },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Filled.Person,
+                    contentDescription = null,
+                )
+            },
             label = { Text("Full Name") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
@@ -80,9 +76,10 @@ fun RegisterScreen(
         TextField(
             value = username,
             onValueChange = { newUsername ->
-                if (!newUsername.contains(",") && !newUsername.contains("$") && !newUsername.contains("^")) {
-                    username = if (newUsername.startsWith("@")) newUsername else "@$newUsername"
-                }
+                username = newUsername
+            },
+            leadingIcon = {
+                Text("@", fontSize = 24.sp)
             },
             label = { Text("Username") },
             singleLine = true,
@@ -96,6 +93,12 @@ fun RegisterScreen(
             value = email,
             onValueChange = { email = it },
             label = { Text("Email") },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Filled.Email,
+                    contentDescription = null,
+                )
+            },
             singleLine = true,
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Email,
@@ -173,14 +176,12 @@ fun RegisterScreen(
 @Composable
 fun RegisterPreview() {
     val mockRegisterState = remember { mutableStateOf("") }
-    val mockRegisteredUser = remember { mutableStateOf<User?>(null) }
 
     RegisterScreen(
         register = { _, _, _, _, _ ->
             mockRegisterState.value = "Mock registration successful"
         },
         observeRegisterState = mockRegisterState,
-        observeRegisteredUser = mockRegisteredUser as State<User?>,
         onNavigateToLogin = { /* Mock Navigation */ },
         onRegisterSuccess = { mockRegisterState.value = "Navigating to Home..." }
     )

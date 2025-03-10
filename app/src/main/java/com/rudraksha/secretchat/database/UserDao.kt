@@ -16,10 +16,13 @@ interface UserDao {
     suspend fun getUserByUsername(username: String): User?
 
     @Query("SELECT * FROM users WHERE userId = :userId LIMIT 1")
-    suspend fun getRegisteredUser(userId: String = "0"): User?
+    suspend fun getRegisteredUser(userId: Int = 1): User?
 
     @Query("SELECT * FROM users WHERE email = :email LIMIT 1")
     suspend fun getUserByEmail(email: String): User?
+
+    @Query("SELECT * FROM users")
+    suspend fun getAllUsers(): List<User>?
 
 //    @Delete(entity = User::class)
 //    suspend fun deleteUser(id: String)
