@@ -1,24 +1,33 @@
 package com.rudraksha.secretchat.ui.screens.chat
 
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.NavigationBar
@@ -29,7 +38,6 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,15 +45,21 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rudraksha.secretchat.R
 import com.rudraksha.secretchat.data.model.Message
+import com.rudraksha.secretchat.ui.screens.common.MessageInput
+import com.rudraksha.secretchat.viewmodels.ChatDetailUiState
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -55,8 +69,9 @@ fun ChatScreen(
     chatName: String = "",
     sendMessage: (String) -> Unit,
     onNavIconClick: () -> Unit,
-    messages: State<List<Message>?>,
+    chatDetailUiState: State<ChatDetailUiState>,
     onMessageReaction: (Message, String) -> Unit = { _, _ -> },
+    updateAllMessages: (List<Message>) -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
     var showBottomSheet by remember { mutableStateOf(false) }
@@ -70,6 +85,18 @@ fun ChatScreen(
         label = "Bottom sheet height"
     )
     val context = LocalContext.current
+    val messages = chatDetailUiState.value.messages
+    val isConnected = chatDetailUiState.value.isConnected
+    val toastMessage = chatDetailUiState.value.toastMessage
+
+    LaunchedEffect(Unit, messages, isConnected, toastMessage) {
+        Log.d("CS", messages.toString())
+        Log.d("CS", isConnected.toString())
+        Log.d("CS", toastMessage.toString())
+//        toastMessage?.let {
+//            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+//        }
+    }
 
     Scaffold(
         topBar = {
@@ -90,13 +117,35 @@ fun ChatScreen(
                 containerColor = Color.Transparent,
                 modifier = Modifier.padding(horizontal = 8.dp)
             ) {
-                MessageInput(
-                    sendMessage = sendMessage,
-                    scope = scope
-                )
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Top
+                ) {
+                    MessageInput(
+                        sendMessage = sendMessage,
+                        scope = scope
+                    )
+                    if (!isConnected) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(topStartPercent = 50, topEndPercent = 50))
+                                .background(MaterialTheme.colorScheme.errorContainer),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.WifiOff,
+                                modifier = Modifier.size(16.dp),
+                                contentDescription = null
+                            )
+                            Text("No Internet connection")
+                        }
+                    }
+                }
             }
         },
-//        contentWindowInsets = WindowInsets.ime,
     ) { innerPadding ->
         Box(
             modifier = Modifier.fillMaxSize()
@@ -115,21 +164,16 @@ fun ChatScreen(
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Top
-            ) {/*
-                messages.value?.let { it ->
+            ) {
+                messages?.let { it ->
                     items(it) { message ->
-                        if (message.senderId == "Server" && message.content != null) {
-                            Toast.makeText(
-                                context, message.content, Toast.LENGTH_SHORT
-                            ).show()
-                        } else {
-                            ChatBubble(
-                                message = message,
-                                byMe = message.senderId == username
-                            )
-                        }
+                        ChatBubble(
+                            message = message,
+                            byMe = message.senderId == username
+                        )
                     }
-                }*/
+                }
+
                 item {
                     EncryptionNotice(
                         text = "Messages and calls are end-to-end encrypted.",
@@ -168,6 +212,10 @@ fun ChatScreen(
             }
         }
     }
+
+    LaunchedEffect(Unit) {
+        messages?.let { updateAllMessages(it) }
+    }
 }
 
 @Preview
@@ -182,12 +230,15 @@ fun ChatPreview() {
         Message(senderId = "A", timestamp = 10000000L),
     ).sortedBy { it.timestamp }.reversed())
 
+    var _chatDetailUiState = MutableStateFlow<ChatDetailUiState>(ChatDetailUiState())
+    val chatDetailUiState: StateFlow<ChatDetailUiState> = _chatDetailUiState.asStateFlow()
+
     ChatScreen(
         username = "A",
         chatName = "Chat Name",
         sendMessage = {},
         onNavIconClick = {},
-        messages = state.collectAsState(),
+        chatDetailUiState = chatDetailUiState.collectAsStateWithLifecycle(),
         onMessageReaction = { _, _ ->}
     )
 }

@@ -7,12 +7,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import com.rudraksha.secretchat.data.WebSocketData
+import com.rudraksha.secretchat.data.model.Chat
 import com.rudraksha.secretchat.data.model.Message
 import com.rudraksha.secretchat.data.remote.WebSocketManager
+import com.rudraksha.secretchat.data.toMessage
 import com.rudraksha.secretchat.utils.getReceivers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 class InvisibleChatViewModel(application: Application, private val username: String) : AndroidViewModel(application) {
     private val webSocketManager = WebSocketManager(username = username)
@@ -23,26 +27,24 @@ class InvisibleChatViewModel(application: Application, private val username: Str
     init {
         viewModelScope.launch {
             webSocketManager.connect()
-            webSocketManager.setOnMessageReceivedListener { message ->
-                if (message.chatId.endsWith("invisible")) {
-                    viewModelScope.launch {
-                        _messages.value += message
-                    }
-                }
-                message.content?.let { Log.d("Received", it) }
+            webSocketManager.setOnDataReceivedListener { message ->
+
             }
         }
     }
 
-    fun sendMessage(text: String, chatId: String) {
-        val message = Message(
-            senderId = username,
-            chatId = chatId + "invisible",
-            receiversId = getReceivers(chatId, username), // For a private chat, assume chatId is the receiver.
+    fun sendMessage(text: String, chat: Chat) {
+        val message = WebSocketData.Message(
+            id = UUID.randomUUID().toString(),
+            sender = username,
+            receivers = getReceivers( chat.participants, username),
+            chatId = chat.chatId,
             content = text,
+            timestamp = System.currentTimeMillis(),
         )
         viewModelScope.launch {
-            webSocketManager.sendMessage(message)
+            webSocketManager.sendData(message)
+            _messages.value += message.toMessage()
         }
     }
 }

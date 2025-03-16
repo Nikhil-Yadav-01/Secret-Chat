@@ -1,4 +1,4 @@
-package com.rudraksha.secretchat.ui.screens.chat
+package com.rudraksha.secretchat.ui.screens.common
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -27,7 +27,6 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
-
 @Composable
 fun MessageInput(sendMessage: (String) -> Unit, scope: CoroutineScope) {
     var content by remember { mutableStateOf("") }
@@ -55,9 +54,9 @@ fun MessageInput(sendMessage: (String) -> Unit, scope: CoroutineScope) {
                     content = ""
                 }
             },
-            modifier = Modifier.padding(start = 2.dp).clip(RoundedCornerShape(percent = 50)),
-
-            ) {
+            modifier = Modifier.padding(horizontal = 4.dp)
+                .clip(RoundedCornerShape(percent = 50))
+        ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.Send,
                 contentDescription = "send",

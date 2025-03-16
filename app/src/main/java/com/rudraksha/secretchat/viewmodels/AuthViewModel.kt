@@ -4,8 +4,10 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.rudraksha.secretchat.data.model.Chat
 import com.rudraksha.secretchat.data.model.User
 import com.rudraksha.secretchat.database.ChatDatabase
+import com.rudraksha.secretchat.utils.createChatId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,6 +18,7 @@ import kotlinx.coroutines.withContext
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     private val userDao = ChatDatabase.getDatabase(application.applicationContext).userDao()
+    private val chatDao = ChatDatabase.getDatabase(application.applicationContext).chatDao()
 
     private val _loginState = MutableStateFlow("")
     val loginState: StateFlow<String> = _loginState.asStateFlow()
@@ -35,6 +38,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             _currentUser.value = withContext(Dispatchers.IO) {
                 userDao.getRegisteredUser()
             }
+            Log.d("CUser", _currentUser.value.toString())
         }
     }
 
@@ -114,8 +118,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 if (user == null) {
                     updateLoginState("User not found")
                 } else {
-                    updateLoginState("Login successful")
                     _currentUser.value = user
+                    insertSelfChat()
+                    updateLoginState("Login successful")
                 }
             }
         }
@@ -148,11 +153,30 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     _currentUser.value = newUser
                     Log.d("User 1", userDao.getRegisteredUser().toString())
                     Log.d("Users", userDao.getAllUsers().toString())
+                    insertSelfChat()
                     updateRegisterState("Registration successful")
                 } catch (e: Exception) {
                     updateRegisterState("Error: ${e.localizedMessage}")
                 }
             }
+        }
+    }
+
+    private fun insertSelfChat() {
+        viewModelScope.launch {
+            Log.d("ISC", "0")
+            currentUser.value?.let { it ->
+                Log.d("ISC", "1")
+                chatDao.insertChat(
+                    Chat(
+                        name = "You (${it.fullName})",
+                        createdBy = it.username,
+                        participants = it.username,
+                    )
+                )
+                Log.d("ISC", "2")
+            }
+            Log.d("ISC", "3")
         }
     }
 

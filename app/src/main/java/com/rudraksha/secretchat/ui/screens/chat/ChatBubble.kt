@@ -22,7 +22,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.rudraksha.secretchat.data.model.Message
 
-
 @Composable
 fun ChatBubble(message: Message, byMe: Boolean = true) {
     val bubbleColor = if (byMe) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.tertiaryContainer

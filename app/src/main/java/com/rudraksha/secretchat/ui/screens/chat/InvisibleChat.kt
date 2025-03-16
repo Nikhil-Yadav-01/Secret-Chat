@@ -38,6 +38,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.rudraksha.secretchat.data.WebSocketData
+import com.rudraksha.secretchat.data.model.Chat
+import com.rudraksha.secretchat.data.model.ChatType
 import com.rudraksha.secretchat.data.model.Message
 import com.rudraksha.secretchat.data.remote.WebSocketManager
 import com.rudraksha.secretchat.utils.createChatId
@@ -47,6 +50,9 @@ import kotlinx.coroutines.launch
 @Preview
 @Composable
 fun InvisibleChatScreen(
+    chat: Chat = Chat(
+        createdBy = "Default"
+    ),
     username: String = "",
     onNavIconClick: () -> Unit = {},
     context: Context = LocalContext.current
@@ -107,13 +113,13 @@ fun InvisibleChatScreen(
                                     if (recipient.isBlank() || recipient == "@") {
                                         Toast.makeText(context, "Enter a valid recipient!", Toast.LENGTH_SHORT).show()
                                     } else {
-                                        val sendMessage = Message(
+                                        val sendMessage = WebSocketData.Message(
                                             content = message,
-                                            senderId = username,
-                                            chatId = createChatId(listOf(username, recipient)),
-                                            receiversId = recipient
+                                            sender = username,
+                                            receivers = listOf( recipient),
+                                            chatId = chat.chatId
                                         )
-                                        webSocketManager.sendMessage(sendMessage)
+                                        webSocketManager.sendData(sendMessage)
                                         message = ""
                                     }
 

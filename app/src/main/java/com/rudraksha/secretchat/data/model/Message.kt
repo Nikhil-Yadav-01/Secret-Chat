@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverters
+import com.rudraksha.secretchat.data.WebSocketData
 import com.rudraksha.secretchat.data.converters.Converters
 import kotlinx.serialization.Serializable
 import java.util.UUID
@@ -23,7 +24,8 @@ data class Message(
     val timestamp: Long = System.currentTimeMillis(),
     val type: MessageType = MessageType.TEXT,  // TEXT, IMAGE, VIDEO, etc.
     val content: String? = null, // For text messages
-    val fileMetadata: String? = null // For files (if any)
+    val isRead: Boolean = false,
+//    val fileMetadata: String? = null // For files (if any)
 )
 
 @Serializable

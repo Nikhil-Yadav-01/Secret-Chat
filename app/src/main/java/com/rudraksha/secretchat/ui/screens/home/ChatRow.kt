@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
@@ -32,16 +33,24 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.rudraksha.secretchat.R
 import com.rudraksha.secretchat.data.model.ChatItem
 import com.rudraksha.secretchat.ui.theme.circleShape
 
-
+@Preview
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ChatRow(
-    chat: ChatItem,
+    chat: ChatItem = ChatItem(
+        name = "preview",
+        lastMessage = "last",
+        time = "Time",
+        unreadCount = 2,
+        profilePic = R.drawable.profile_pic
+    ),
     delete: (ChatItem) -> Unit = {},
     onClick: (String) -> Unit = {},
     onLongPress: () -> Unit = {}
@@ -61,74 +70,81 @@ fun ChatRow(
             }
         }
     )
-    SwipeToDismissBox(
-        state = swipeState,
-        backgroundContent = {
-            val color by animateColorAsState(
-                when (swipeState.targetValue) {
-                    SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.background
-                    else -> MaterialTheme.colorScheme.tertiary
-                },
-                label = ""
-            )
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(color)
-            )
-        },
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp)
-                .combinedClickable(
-                    onClick = {
-                        longPressed = false
-                        onClick(chat.id)
+
+    Card {
+        SwipeToDismissBox(
+            state = swipeState,
+            backgroundContent = {
+                val color by animateColorAsState(
+                    when (swipeState.targetValue) {
+                        SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.background
+                        else -> MaterialTheme.colorScheme.tertiary
                     },
-                    onLongClick = {
-                        onLongPress()
-                        longPressed = true
-                    }
+                    label = ""
                 )
-                .padding(if (longPressed) elevation else 0.dp),
-            verticalAlignment = Alignment.CenterVertically
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(color)
+                )
+            },
         ) {
-            Image(
-                painter = painterResource(id = chat.profilePic),
-                contentDescription = "Profile Picture",
+            Row(
                 modifier = Modifier
-                    .size(50.dp)
-                    .clip(circleShape)
-                    .border(
-                        1.dp,
-                        MaterialTheme.colorScheme.tertiary,
-                        circleShape
+                    .fillMaxWidth()
+                    .padding(8.dp)
+                    .combinedClickable(
+                        onClick = {
+                            longPressed = false
+                            onClick(chat.id)
+                        },
+                        onLongClick = {
+                            onLongPress()
+                            longPressed = true
+                        }
                     )
-            )
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    chat.name,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
+                    .padding(if (longPressed) elevation else 0.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Image(
+                    painter = painterResource(id = chat.profilePic),
+                    contentDescription = "Profile Picture",
+                    modifier = Modifier
+                        .size(50.dp)
+                        .clip(circleShape)
+                        .border(
+                            1.dp,
+                            MaterialTheme.colorScheme.tertiary,
+                            circleShape
+                        )
                 )
-                Text(
-                    chat.lastMessage,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    fontSize = 14.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
 
-            Column(horizontalAlignment = Alignment.End) {
-                Text(chat.time, color = MaterialTheme.colorScheme.onBackground, fontSize = 12.sp)
-                if (chat.unreadCount > 0) {
-                    BadgeBox(chat.unreadCount)
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        chat.name,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        chat.lastMessage,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        chat.time,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        fontSize = 12.sp
+                    )
+                    if (chat.unreadCount > 0) {
+                        BadgeBox(chat.unreadCount)
+                    }
                 }
             }
         }

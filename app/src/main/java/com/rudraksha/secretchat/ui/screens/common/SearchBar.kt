@@ -1,4 +1,4 @@
-package com.rudraksha.secretchat.ui.screens.home
+package com.rudraksha.secretchat.ui.screens.common
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,7 +26,9 @@ import androidx.compose.ui.unit.dp
 @Preview
 @Composable
 fun SearchBar(
-    onSearchClick: (String) -> Unit = {}
+    text: String = "Search chats, calls, and more",
+    onSearchClick: (String) -> Unit = {},
+    leadingIcon: @Composable() (() -> Unit)? = null
 ) {
     var searchText by remember { mutableStateOf("") }
     TextField(
@@ -36,22 +38,23 @@ fun SearchBar(
         },
         placeholder = {
             Text(
-                "Search chats, calls, and more",
-                color = MaterialTheme.colorScheme.onBackground
+                text = text,
+                color = MaterialTheme.colorScheme.onSurface
             )
         },
-        leadingIcon = {
+        leadingIcon = leadingIcon,
+        trailingIcon = {
             Icon(
                 Icons.Default.Search,
                 contentDescription = "Search",
-                tint = MaterialTheme.colorScheme.primary
+                tint = MaterialTheme.colorScheme.onSurface
             )
         },
         modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp)
+            .padding(horizontal = 4.dp)
             .clip(RoundedCornerShape(percent = 50))
-            .background(MaterialTheme.colorScheme.background),
+            .background(MaterialTheme.colorScheme.surfaceContainer),
         singleLine = true,
         keyboardOptions = KeyboardOptions.Default.copy(
             imeAction = ImeAction.Search

@@ -21,6 +21,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.rudraksha.secretchat.data.model.Chat
+import com.rudraksha.secretchat.data.model.ChatItem
+import com.rudraksha.secretchat.data.model.Message
 import com.rudraksha.secretchat.data.model.User
 import com.rudraksha.secretchat.data.model.toChatItem
 import com.rudraksha.secretchat.ui.screens.authentication.LoginScreen
@@ -51,38 +53,9 @@ fun NavigationManager(
     val currentUser by authViewModel.currentUser.collectAsState()
     val chatList by chatListViewModel.chatList.collectAsStateWithLifecycle()
 
-    var insertedSelfChat by remember { mutableStateOf(false) }
-
     // Ensure registered user is always fetched
     LaunchedEffect(Unit) {
         authViewModel.getCurrentUser()
-    }
-
-    fun insertSelfChat(user: User) {
-        val uname = user.username
-        if (chatList.find { it.chatId == createChatId(listOf(uname)) } == null) {
-            chatListViewModel.addChat(
-                Chat(
-                    chatId = createChatId(listOf(uname)),
-                    name = "You (${user.fullName})",
-                    createdBy = uname,
-                    participants = uname
-                )
-            )
-            Log.d("Inserted", "Self Chat")
-            insertedSelfChat = true
-        } else {
-            Log.d("Found", chatList.find { it.chatId == uname }.toString())
-        }
-    }
-
-    LaunchedEffect(currentUser) {
-        Log.d("Recomposed", "currentUser = ${currentUser?.username}")
-        currentUser?.let { user ->
-            withContext(Dispatchers.IO) {
-                insertSelfChat(user)
-            }
-        }
     }
 
     NavHost(
@@ -134,47 +107,57 @@ fun NavigationManager(
         composable(Routes.Home.route) {
             LaunchedEffect(Unit) {
                 chatListViewModel.getAllChats() // Ensure chat list is always updated
+                Log.d("ChatList", chatList.toString())
             }
 
             HomeScreen(
                 navController = navController,
                 onChatItemClick = { chatId ->
-                    Log.d("ChatItemClick", "0")
+                    Log.d("ChatItemClick", chatId)
+                    chatList.find { it.chatId == chatId }?.let {
+                        chatListViewModel.addChat(
+                            it.copy( unreadCount = 0 )
+                        )
+//                        navController.currentBackStackEntry?.savedStateHandle?.set("chat", it.toChatItem())
+                    }
                     navController.navigate("${Routes.Chat.route}/$chatId")
                 },
-                chatList = chatList.map { it.toChatItem(lastMessage = "LAST", time = "TIME", unreadCount = 0) }
+                chatList = chatList.map { it.toChatItem() }
             )
         }
 
         composable(
             route = "${Routes.Chat.route}/{chatId}"
         ) { backStackEntry ->
-            val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
+            val chatFound = backStackEntry.savedStateHandle.get<ChatItem>("chat")
+            Log.d("chatFound", chatFound.toString())
+            val chatId = backStackEntry.arguments?.getString("chatId") ?: "not found"
             val chatDetailViewModel: ChatDetailViewModel = viewModel(
                 factory = ChatDetailViewModelFactory(
                     chatId = chatId, username = currentUser?.username ?: "default",
                     navController.context.applicationContext as android.app.Application
                 )
             )
-
-            val messages = chatDetailViewModel.messages // Observing messages
-            LaunchedEffect(Unit) {
-                chatListViewModel.getAllChats()
-            }
+            Log.d("gdgdh", currentUser?.username ?: "default")
+            val chat = chatList.find { it.chatId == chatId }
+//            Log.d("chatId received", chat.toString())
+            val chatDetailUiState = chatDetailViewModel.chatDetailUiState // Observing messages
 
             ChatScreen(
                 username = currentUser?.username ?: "default",
-                chatName = chatList.find { it.chatId == chatId }?.name ?: "Default Chat",
+                chatName = chat?.name ?: "Default Chat",
                 sendMessage = { message: String ->
-                    chatDetailViewModel.sendMessage(message, chatId)
+                    if (chat == null) Log.d("Chat is", chat.toString())
+                    chat?.let { chatDetailViewModel.sendMessage(message, it) }
                 },
                 onNavIconClick = {
                     navController.navigateUp()
                 },
-                messages = messages.collectAsStateWithLifecycle(),
+                chatDetailUiState = chatDetailUiState.collectAsStateWithLifecycle(),
                 onMessageReaction = { message, reaction ->
 //                    chatDetailViewModel.reactToMessage(message, reaction)
                 },
+                updateAllMessages = chatDetailViewModel::updateAllMessages
             )
         }
 
@@ -220,6 +203,7 @@ fun NavigationManager(
 //            }
 
             InvisibleChatScreen(
+                chat = Chat(createdBy = currentUser?.username ?: "default"),
 //                messages = messages,
                 username = currentUser?.username ?: "default",
 //                sendMessage = { message: String, chatId: String ->
@@ -231,6 +215,15 @@ fun NavigationManager(
                 context = context
             )
         }
+        /*
+        chat = Chat(
+            chatId = webSocketData.chatId,
+            lastMessage = webSocketData.content ?: "",
+            createdBy = webSocketData.sender,
+            time = webSocketData.timestamp,
+        )
+        chatDao.insertChat(chat)
+        */
     }
 }
 

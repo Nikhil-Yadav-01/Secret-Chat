@@ -7,83 +7,127 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import com.rudraksha.secretchat.data.WebSocketData
+import com.rudraksha.secretchat.data.model.Chat
 import com.rudraksha.secretchat.database.ChatDatabase
 import com.rudraksha.secretchat.data.model.Message
 import com.rudraksha.secretchat.data.remote.WebSocketManager
-import com.rudraksha.secretchat.utils.createChatId
+import com.rudraksha.secretchat.data.toMessage
 import com.rudraksha.secretchat.utils.getReceivers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 class ChatDetailViewModel(application: Application, private val username: String, private val chatId: String) : AndroidViewModel(application) {
     private val messageDao = ChatDatabase.getDatabase(application).messageDao()
+    private val chatDao = ChatDatabase.getDatabase(application).chatDao()
+    private val userDao = ChatDatabase.getDatabase(application).userDao()
     private val webSocketManager = WebSocketManager(username = username)
 
-    private var _chatDetailUiState = MutableStateFlow<ChatDetailUiState>(ChatDetailUiState())
+    private var _chatDetailUiState = MutableStateFlow(ChatDetailUiState())
     val chatDetailUiState: StateFlow<ChatDetailUiState> = _chatDetailUiState.asStateFlow()
 
-    private val _messages = MutableStateFlow<List<Message>?>(null)
-    val messages = _messages.asStateFlow()
-
-    private val _lastMessage = MutableStateFlow<Message?>(null)
-    val lastMessage = _lastMessage.asStateFlow()
+    private val _isConnected = MutableStateFlow(false)
+    val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
 
     init {
         viewModelScope.launch {
             _chatDetailUiState.value.isLoading = true
             webSocketManager.connect()
             loadMessages()
-            webSocketManager.setOnMessageReceivedListener { message ->
+            webSocketManager.setOnDataReceivedListener { webSocketData ->
                 viewModelScope.launch {
-                    messageDao.insertMessage(message)
-                    Log.d("Inserted", message.toString())
+                    when (webSocketData) {
+                        is WebSocketData.Message -> {
+                            if (webSocketData.chatId == "") {
+                                _chatDetailUiState.value.toastMessage = webSocketData.content
+                            } else {
+                                messageDao.insertMessage(webSocketData.toMessage())
+                                var chat = chatDao.getChatById(webSocketData.chatId)
+                                if (chat == null) {
+                                    Log.e("Received", "Chat not found")
+                                } else {
+                                    val updatedChat = chat.copy(
+                                        unreadCount = chat.unreadCount + 1,
+                                    )
+                                    Log.d("Received", "Chat found $chat")
+                                    chatDao.insertChat(updatedChat)
+                                    Log.d("Received", "Chat updated $updatedChat")
+                                }
+                            }
+                        }
+                        else -> {
+                            Log.e("Received", "Else case")
+                        }
+                    }
+                    Log.d("Inserted", webSocketData.toString())
                     loadMessages()
                 }
             }
             _chatDetailUiState.value.isLoading = false
+
+            observeConnectionStatus()
+        }
+    }
+
+    private fun observeConnectionStatus() {
+        viewModelScope.launch {
+            webSocketManager.isConnected.collectLatest { isConnected ->
+                _isConnected.value = isConnected
+                // You can perform actions here based on the connection status
+                if (isConnected) {
+                    println("WebSocket is connected")
+                } else {
+                    println("WebSocket is disconnected")
+                }
+            }
         }
     }
 
     private suspend fun loadMessages() {
         _chatDetailUiState.value.isLoading = true
-        _messages.value = messageDao.getMessagesForChat(chatId)
-        val temp = _messages.value?.firstOrNull()
-        temp?.let { message ->
-            _lastMessage.value?.let { last ->
-                if (message.timestamp > last.timestamp) {
-                    _lastMessage.value = temp
-                }
-            }
-        }
-        _lastMessage.value?.let { Log.d("LastMessage", it.toString()) }
+        _chatDetailUiState.value.messages = messageDao.getMessagesForChat(chatId)
         _chatDetailUiState.value.isLoading = false
     }
 
-    fun sendMessage(text: String, chatId: String) {
-        _chatDetailUiState.value.isLoading = true
-        Log.d("Receivers", getReceivers(chatId, username))
-        val message = Message(
-            senderId = username,
-            chatId = chatId,
-            receiversId = getReceivers(chatId, username), // For a private chat, assume chatId is the receiver.
-            content = text,
-        )
+    fun sendMessage(text: String, chat: Chat) {
         viewModelScope.launch {
-            messageDao.insertMessage(message)
-            webSocketManager.sendMessage(message)
+            _chatDetailUiState.value.isLoading = true
+            val message = WebSocketData.Message(
+                id = UUID.randomUUID().toString(),
+                sender = username,
+                receivers = getReceivers(chat.participants, username),
+                chatId = chatId,
+                content = text,
+                timestamp = System.currentTimeMillis(),
+            )
+            messageDao.insertMessage(message.toMessage())
+            webSocketManager.sendData(message)
             loadMessages()
+            _chatDetailUiState.value.isLoading = false
         }
-        _chatDetailUiState.value.isLoading = false
     }
 
     fun deleteMessage(message: Message) {
         viewModelScope.launch {
             _chatDetailUiState.value.isLoading = true
 //            messageDao.deleteMessage(message)
-            _chatDetailUiState.value.isLoading = false
             loadMessages()
+            _chatDetailUiState.value.isLoading = false
+        }
+    }
+
+
+    fun updateAllMessages(messageList: List<Message>) {
+        viewModelScope.launch {
+            _chatDetailUiState.value.isLoading = true
+            messageList.forEach {
+                messageDao.insertMessage(it.copy(isRead = true))
+            }
+            _chatDetailUiState.value.isLoading = false
         }
     }
 }
@@ -104,8 +148,9 @@ class ChatDetailViewModelFactory(
 }
 
 data class ChatDetailUiState(
-    var messages: List<Message> = emptyList(),
+    var messages: List<Message>? = null,
     var isLoading: Boolean = false,
+    var isConnected: Boolean = false,
     var errorMessage: String? = null,
-    var lastMessage: Message? = null,
+    var toastMessage: String? = null,
 )
