@@ -2,8 +2,8 @@ package com.rudraksha.secretchat.utils
 
 import com.rudraksha.secretchat.data.model.ChatType
 
-fun createChatId(usernames: List<String>, chatType: ChatType = ChatType.PRIVATE): String {
-    return "${chatType.name}^" + usernames.sorted().joinToString(separator = "^")
+fun createChatId(users: List<String>, chatType: ChatType = ChatType.PRIVATE): String {
+    return "${chatType.name}^" + users.sorted().joinToString(separator = "^")
 }
 
 //fun isUserInChat(chatId: String, username: String): Boolean {

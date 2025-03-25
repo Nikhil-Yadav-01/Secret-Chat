@@ -2,6 +2,7 @@ package com.rudraksha.secretchat.navigation
 
 import android.content.Context
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
@@ -9,9 +10,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.sp
@@ -20,91 +18,96 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.rudraksha.secretchat.data.model.Chat
+import com.rudraksha.secretchat.data.model.ChatEntity
 import com.rudraksha.secretchat.data.model.ChatItem
-import com.rudraksha.secretchat.data.model.Message
-import com.rudraksha.secretchat.data.model.User
+import com.rudraksha.secretchat.data.model.ChatType
+import com.rudraksha.secretchat.data.model.UserEntity
 import com.rudraksha.secretchat.data.model.toChatItem
+import com.rudraksha.secretchat.data.remote.WebSocketManager
 import com.rudraksha.secretchat.ui.screens.authentication.LoginScreen
 import com.rudraksha.secretchat.ui.screens.authentication.RegisterScreen
 import com.rudraksha.secretchat.ui.screens.chat.ChatScreen
 import com.rudraksha.secretchat.ui.screens.chat.InvisibleChatScreen
+import com.rudraksha.secretchat.ui.screens.create.SelectMembersScreen
 import com.rudraksha.secretchat.ui.screens.home.HomeScreen
 import com.rudraksha.secretchat.viewmodels.AuthViewModel
-import com.rudraksha.secretchat.utils.createChatId
-import com.rudraksha.secretchat.viewmodels.ChatDetailViewModel
-import com.rudraksha.secretchat.viewmodels.ChatDetailViewModelFactory
+import com.rudraksha.secretchat.viewmodels.MessagesViewModel
+import com.rudraksha.secretchat.viewmodels.MessagesViewModelFactory
 import com.rudraksha.secretchat.viewmodels.ChatListViewModel
 import com.rudraksha.secretchat.viewmodels.InvisibleChatViewModel
 import com.rudraksha.secretchat.viewmodels.InvisibleChatViewModelFactory
-import kotlinx.coroutines.Dispatchers
+import com.rudraksha.secretchat.viewmodels.MiscellaneousViewModel
+import com.rudraksha.secretchat.viewmodels.MiscellaneousViewModelFactory
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.withContext
 
 @Composable
 fun NavigationManager(
     navController: NavHostController,
+    authViewModel: AuthViewModel,
     context: Context,
 ) {
     val chatListViewModel: ChatListViewModel = viewModel()
-    val authViewModel: AuthViewModel = viewModel()
+    val currentUser by authViewModel.currentUserEntity.collectAsState()
+    val chatList by chatListViewModel.chatEntityList.collectAsStateWithLifecycle()
 
-    val currentUser by authViewModel.currentUser.collectAsState()
-    val chatList by chatListViewModel.chatList.collectAsStateWithLifecycle()
+    val pwd = "pwd"
+    lateinit var webSocketManager: WebSocketManager
 
     // Ensure registered user is always fetched
     LaunchedEffect(Unit) {
         authViewModel.getCurrentUser()
+        webSocketManager = WebSocketManager(username = currentUser?.username ?: "default", password = pwd)
+        webSocketManager.connect()
     }
 
     NavHost(
         navController = navController,
-        startDestination = Routes.Splash.route // Start with SplashScreen
+        startDestination = Routes.Splash // Start with SplashScreen
     ) {
-        composable(Routes.Splash.route) {
+        composable<Routes.Splash> {
             SplashScreen(
                 navigateToRegister = {
-                    navController.navigate(Routes.Registration.route) {
-                        popUpTo(Routes.Splash.route) { inclusive = true } // Prevent going back to Splash
+                    navController.navigate(Routes.Registration) {
+                        popUpTo(Routes.Splash) { inclusive = true } // Prevent going back to Splash
                     }
                 },
                 navigateToHome = {
-                    navController.navigate(Routes.Home.route) {
-                        popUpTo(Routes.Splash.route) { inclusive = true }
+                    navController.navigate(Routes.Home) {
+                        popUpTo(Routes.Splash) { inclusive = true }
                     }
                 },
-                observeCurrentUser = authViewModel.currentUser,
+                observeCurrentUserEntity = authViewModel.currentUserEntity,
             )
         }
 
-        composable(Routes.Registration.route) {
+        composable<Routes.Registration> {
             RegisterScreen(
                 register = authViewModel::register,
-                observeRegisterState = authViewModel.registerState.collectAsStateWithLifecycle(),
-                onNavigateToLogin = { navController.navigate(Routes.Login.route) },
+                observeRegisterState = authViewModel.authState,
+                navigateToLogin = { navController.navigate(Routes.Login) },
                 onRegisterSuccess = {
-                    navController.navigate(Routes.Home.route) {
-                        popUpTo(Routes.Registration.route) { inclusive = true }
+                    navController.navigate(Routes.Home) {
+                        popUpTo(Routes.Registration) { inclusive = true }
                     }
                 }
             )
         }
 
-        composable(Routes.Login.route) {
+        composable<Routes.Login> {
             LoginScreen(
                 login = authViewModel::login,
-                observeLoginState = authViewModel.loginState.collectAsStateWithLifecycle(),
+                observeLoginState = authViewModel.authState,
                 navigateToRegister = { navController.navigateUp() },
                 onLoginSuccess = {
-                    navController.navigate(Routes.Home.route) {
-                        popUpTo(Routes.Login.route) { inclusive = true }
+                    navController.navigate(Routes.Home) {
+                        popUpTo(Routes.Login) { inclusive = true }
                     }
                 }
             )
         }
 
-        composable(Routes.Home.route) {
+        composable<Routes.Home> {
             LaunchedEffect(Unit) {
                 chatListViewModel.getAllChats() // Ensure chat list is always updated
                 Log.d("ChatList", chatList.toString())
@@ -112,57 +115,51 @@ fun NavigationManager(
 
             HomeScreen(
                 navController = navController,
-                onChatItemClick = { chatId ->
-                    Log.d("ChatItemClick", chatId)
-                    chatList.find { it.chatId == chatId }?.let {
+                onChatItemClick = { chatItem ->
+                    navController.currentBackStackEntry?.savedStateHandle?.set("chat", chatItem)
+                    chatList.find { it.chatId == chatItem.id }?.let {
                         chatListViewModel.addChat(
-                            it.copy( unreadCount = 0 )
+                            it.copy(unreadCount = 0)
                         )
-//                        navController.currentBackStackEntry?.savedStateHandle?.set("chat", it.toChatItem())
                     }
-                    navController.navigate("${Routes.Chat.route}/$chatId")
+                    navController.navigate(Routes.Chat)
                 },
-                chatList = chatList.map { it.toChatItem() }
+                selectMembers = { chatType ->
+                    navController.currentBackStackEntry?.savedStateHandle?.set("chatType", chatType)
+                    navController.navigate(Routes.SelectMembers)
+                },
+                chatList = chatList.map { it.toChatItem(currentUser?.username ?: "default") }
             )
         }
 
-        composable(
-            route = "${Routes.Chat.route}/{chatId}"
-        ) { backStackEntry ->
-            val chatFound = backStackEntry.savedStateHandle.get<ChatItem>("chat")
-            Log.d("chatFound", chatFound.toString())
-            val chatId = backStackEntry.arguments?.getString("chatId") ?: "not found"
-            val chatDetailViewModel: ChatDetailViewModel = viewModel(
-                factory = ChatDetailViewModelFactory(
-                    chatId = chatId, username = currentUser?.username ?: "default",
-                    navController.context.applicationContext as android.app.Application
+        composable<Routes.Chat> {
+            val chat = navController.previousBackStackEntry?.savedStateHandle?.get<ChatItem>("chat")
+            chat?.let {
+                val messagesViewModel: MessagesViewModel = viewModel(
+                    factory = MessagesViewModelFactory(
+                        chatId = it.id, username = currentUser?.username ?: "default", webSocketManager = webSocketManager,
+                        navController.context.applicationContext as android.app.Application
+                    )
                 )
-            )
-            Log.d("gdgdh", currentUser?.username ?: "default")
-            val chat = chatList.find { it.chatId == chatId }
-//            Log.d("chatId received", chat.toString())
-            val chatDetailUiState = chatDetailViewModel.chatDetailUiState // Observing messages
+                val chatDetailUiState = messagesViewModel.messagesUiState // Observing messages
 
-            ChatScreen(
-                username = currentUser?.username ?: "default",
-                chatName = chat?.name ?: "Default Chat",
-                sendMessage = { message: String ->
-                    if (chat == null) Log.d("Chat is", chat.toString())
-                    chat?.let { chatDetailViewModel.sendMessage(message, it) }
-                },
-                onNavIconClick = {
-                    navController.navigateUp()
-                },
-                chatDetailUiState = chatDetailUiState.collectAsStateWithLifecycle(),
-                onMessageReaction = { message, reaction ->
+                ChatScreen(
+                    username = currentUser?.username ?: "default",
+                    chatName = it.name,
+                    sendMessage = { message: String ->
+                        messagesViewModel.sendMessage(message, it)
+                    },
+                    navigateBack = { navController.navigateUp() },
+                    observeMessagesUiState = chatDetailUiState,
+                    onMessageReaction = { message, reaction ->
 //                    chatDetailViewModel.reactToMessage(message, reaction)
-                },
-                updateAllMessages = chatDetailViewModel::updateAllMessages
-            )
+                    },
+                    updateAllMessages = messagesViewModel::updateAllMessages
+                )
+            }
         }
 
-        composable(
-            route = Routes.InvisibleChat.route,
+        composable<Routes.InvisibleChat> {
 /*            enterTransition = {
                 slideIn (
                     animationSpec = spring(
@@ -185,45 +182,51 @@ fun NavigationManager(
                     }
                 )
             }*/
-        ) {
             val invisibleChatViewModel: InvisibleChatViewModel = viewModel(
                 factory = InvisibleChatViewModelFactory(
-                    username = currentUser?.username ?: "default",
-                    navController.context.applicationContext as android.app.Application
+                    application = navController.context.applicationContext as android.app.Application,
+                    webSocketManager = webSocketManager
                 )
             )
-
-//            val webSocketManager: WebSocketManager = remember {
-//                WebSocketManager(currentUser?.username ?: "default")
-//            }
-//            Log.d("WSMNav", webSocketManager.username)
-//            val messages = webSocketManager.messages.collectAsState() // Observing messages
-//            LaunchedEffect(Unit) {
-//                webSocketManager.connect()
-//            }
+            val invisibleChatUiState = invisibleChatViewModel.invisibleChatUiState
+            val chat = invisibleChatUiState.collectAsStateWithLifecycle().value.chatEntity
 
             InvisibleChatScreen(
-                chat = Chat(createdBy = currentUser?.username ?: "default"),
-//                messages = messages,
                 username = currentUser?.username ?: "default",
-//                sendMessage = { message: String, chatId: String ->
-//                    invisibleChatViewModel.sendMessage(message, chatId)
-//                },
-                onNavIconClick = {
-                    navController.navigateUp()
+                createChat = invisibleChatViewModel::createChat,
+                sendMessage = { message: String, ->
+                    Log.d("chat 0", chat.toString())
+                    if (chat != null) {
+                        invisibleChatViewModel.sendMessage(message)
+                    }
                 },
-                context = context
+                navigateBack = { navController.navigateUp() },
+                invisibleChatUiStateStateFlow = invisibleChatUiState,
             )
         }
-        /*
-        chat = Chat(
-            chatId = webSocketData.chatId,
-            lastMessage = webSocketData.content ?: "",
-            createdBy = webSocketData.sender,
-            time = webSocketData.timestamp,
-        )
-        chatDao.insertChat(chat)
-        */
+
+        composable<Routes.SelectMembers> {
+            val chatType = navController.previousBackStackEntry?.savedStateHandle
+                ?.get<ChatType>("chatType") ?: ChatType.PRIVATE
+
+            val miscellaneousViewModel: MiscellaneousViewModel = viewModel(
+                factory = MiscellaneousViewModelFactory(
+                    application = navController.context.applicationContext as android.app.Application,
+                    webSocketManager = webSocketManager
+                )
+            )
+            val miscellaneousUiState = miscellaneousViewModel.miscellaneousUiState.collectAsStateWithLifecycle()
+            LaunchedEffect(Unit) {
+                miscellaneousViewModel.fetchUsers(currentUser?.username ?: "def")
+                Log.d("NM LE", "${miscellaneousUiState.value.users}")
+            }
+            SelectMembersScreen(
+                chatType = chatType,
+                create = { users, name ->
+                    Toast.makeText(context, "Creating chat $name $users", Toast.LENGTH_SHORT).show()
+                }
+            )
+        }
     }
 }
 
@@ -231,9 +234,9 @@ fun NavigationManager(
 fun SplashScreen(
     navigateToRegister: () -> Unit,
     navigateToHome: () -> Unit,
-    observeCurrentUser: StateFlow<User?>,
+    observeCurrentUserEntity: StateFlow<UserEntity?>,
 ) {
-    val currentUser = observeCurrentUser.collectAsState().value
+    val currentUser = observeCurrentUserEntity.collectAsState().value
     LaunchedEffect(currentUser) {
         delay(500) // Optional: Show splash for a bit
         if (currentUser == null) {
@@ -247,3 +250,29 @@ fun SplashScreen(
         Text("Loading...", fontSize = 24.sp)
     }
 }
+
+//fun createChat(users: List<String>): Chat {
+//    val chatId = createChatId(users)
+//    // Check for the server
+//    val chat = getChat(chatId)
+//    if (chat != null) {
+//        return chat
+//    } else {
+//        // Create a new chat
+//
+////        saveChat(newChat)
+//    }
+//}
+//
+//@Composable
+//fun createChatDialog(
+//    users: List<String>,
+//    create(String) -> Unit
+////    create(String, String, ChatType, String, String)-> Unit
+//) {
+//
+//}
+//
+//fun getChat(chatId: String): Chat? {
+//    return null
+//}

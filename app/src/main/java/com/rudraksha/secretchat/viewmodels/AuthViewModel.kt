@@ -4,8 +4,11 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.rudraksha.secretchat.data.model.Chat
-import com.rudraksha.secretchat.data.model.User
+import com.rudraksha.secretchat.data.WebSocketData
+import com.rudraksha.secretchat.data.model.ChatEntity
+import com.rudraksha.secretchat.data.model.ChatType
+import com.rudraksha.secretchat.data.model.UserEntity
+import com.rudraksha.secretchat.data.remote.WebSocketManager
 import com.rudraksha.secretchat.database.ChatDatabase
 import com.rudraksha.secretchat.utils.createChatId
 import kotlinx.coroutines.Dispatchers
@@ -20,14 +23,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val userDao = ChatDatabase.getDatabase(application.applicationContext).userDao()
     private val chatDao = ChatDatabase.getDatabase(application.applicationContext).chatDao()
 
-    private val _loginState = MutableStateFlow("")
-    val loginState: StateFlow<String> = _loginState.asStateFlow()
+    private val _authState = MutableStateFlow("")
+    val authState: StateFlow<String> = _authState.asStateFlow()
 
-    private val _registerState = MutableStateFlow("")
-    val registerState: StateFlow<String> = _registerState.asStateFlow()
-
-    private val _currentUser = MutableStateFlow<User?>(null)
-    val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
+    private val _currentUserEntity = MutableStateFlow<UserEntity?>(null)
+    val currentUserEntity: StateFlow<UserEntity?> = _currentUserEntity.asStateFlow()
 
     init {
         getCurrentUser()
@@ -35,10 +35,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     fun getCurrentUser() {
         viewModelScope.launch {
-            _currentUser.value = withContext(Dispatchers.IO) {
+            _currentUserEntity.value = withContext(Dispatchers.IO) {
                 userDao.getRegisteredUser()
             }
-            Log.d("CUser", _currentUser.value.toString())
+            Log.d("CUser", _currentUserEntity.value.toString())
         }
     }
 
@@ -91,10 +91,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         )
 
         return if (errors.isNotEmpty()) {
-            _registerState.value = errors.first() // Show first error message
+            this._authState.value = errors.first() // Show first error message
             false
         } else {
-            _registerState.value = ""
+            this._authState.value = ""
             true
         }
     }
@@ -105,22 +105,22 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             val passwordError = validatePassword(password)
 
             if (emailError != null) {
-                _loginState.value = emailError
+                this@AuthViewModel._authState.value = emailError
                 return@launch
             }
             if (passwordError != null) {
-                _loginState.value = passwordError
+                this@AuthViewModel._authState.value = passwordError
                 return@launch
             }
 
             withContext(Dispatchers.IO) {
                 val user = userDao.getUserByEmail(email)
                 if (user == null) {
-                    updateLoginState("User not found")
+                    updateAuthState("User not found")
                 } else {
-                    _currentUser.value = user
+                    _currentUserEntity.value = user
                     insertSelfChat()
-                    updateLoginState("Login successful")
+                    updateAuthState("Login successful")
                 }
             }
         }
@@ -138,25 +138,26 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 val existingUserByUsername = userDao.getUserByUsername(username)
 
                 if (existingUserByUsername != null) {
-                    updateRegisterState("User already exists with same username")
+                    updateAuthState("User already exists with same username")
                     return@withContext
                 }
                 if (existingUserByEmail != null) {
-                    updateRegisterState("User already exists with same email")
+                    updateAuthState("User already exists with same email")
                     return@withContext
                 }
 
-                val newUser = User(email = email, username = sanitizedUsername, fullName = fullName, online = true)
+                val newUserEntity = UserEntity(email = email, username = sanitizedUsername, fullName = fullName, online = true)
 
                 try {
-                    userDao.insertUser(newUser)
-                    _currentUser.value = newUser
+                    userDao.insertUser(newUserEntity)
+                    _currentUserEntity.value = newUserEntity
                     Log.d("User 1", userDao.getRegisteredUser().toString())
                     Log.d("Users", userDao.getAllUsers().toString())
                     insertSelfChat()
-                    updateRegisterState("Registration successful")
+                    saveUser(newUserEntity, password)
+                    updateAuthState("Registration successful")
                 } catch (e: Exception) {
-                    updateRegisterState("Error: ${e.localizedMessage}")
+                    updateAuthState("Error: ${e.localizedMessage}")
                 }
             }
         }
@@ -164,31 +165,32 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun insertSelfChat() {
         viewModelScope.launch {
-            Log.d("ISC", "0")
-            currentUser.value?.let { it ->
-                Log.d("ISC", "1")
+            currentUserEntity.value?.let {
                 chatDao.insertChat(
-                    Chat(
+                    ChatEntity(
+                        chatId = createChatId(listOf(it.username), ChatType.PRIVATE),
                         name = "You (${it.fullName})",
                         createdBy = it.username,
                         participants = it.username,
                     )
                 )
-                Log.d("ISC", "2")
             }
-            Log.d("ISC", "3")
         }
     }
 
-    private suspend fun updateLoginState(state: String) {
-        withContext(Dispatchers.Default) {
-            _loginState.value = state
+    private fun saveUser(userEntity: UserEntity, password: String) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                val websocketManager = WebSocketManager(userEntity.username, password)
+//                websocketManager.connect()
+                websocketManager.sendData(WebSocketData.SaveUser(userEntity.username))
+            }
         }
     }
 
-    private suspend fun updateRegisterState(state: String) {
+    private suspend fun updateAuthState(state: String) {
         withContext(Dispatchers.Default) {
-            _registerState.value = state
+            _authState.value = state
         }
     }
 }

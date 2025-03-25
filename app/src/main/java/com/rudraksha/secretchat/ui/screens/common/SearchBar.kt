@@ -28,14 +28,12 @@ import androidx.compose.ui.unit.dp
 fun SearchBar(
     text: String = "Search chats, calls, and more",
     onSearchClick: (String) -> Unit = {},
-    leadingIcon: @Composable() (() -> Unit)? = null
+    leadingIcon: @Composable() (() -> Unit)? = null,
 ) {
     var searchText by remember { mutableStateOf("") }
     TextField(
         value = searchText,
-        onValueChange = {
-            searchText = it
-        },
+        onValueChange = { searchText = it },
         placeholder = {
             Text(
                 text = text,
@@ -52,13 +50,10 @@ fun SearchBar(
         },
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp)
             .clip(RoundedCornerShape(percent = 50))
             .background(MaterialTheme.colorScheme.surfaceContainer),
         singleLine = true,
-        keyboardOptions = KeyboardOptions.Default.copy(
-            imeAction = ImeAction.Search
-        ),
+        keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Search),
         keyboardActions = KeyboardActions(
             onSearch = {
                 onSearchClick(searchText)

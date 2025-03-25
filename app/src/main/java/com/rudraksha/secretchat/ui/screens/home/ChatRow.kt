@@ -33,26 +33,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.rudraksha.secretchat.R
 import com.rudraksha.secretchat.data.model.ChatItem
 import com.rudraksha.secretchat.ui.theme.circleShape
 
-@Preview
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ChatRow(
-    chat: ChatItem = ChatItem(
-        name = "preview",
-        lastMessage = "last",
-        time = "Time",
-        unreadCount = 2,
-        profilePic = R.drawable.profile_pic
-    ),
+    chat: ChatItem,
     delete: (ChatItem) -> Unit = {},
-    onClick: (String) -> Unit = {},
+    onClick: (ChatItem) -> Unit = {},
     onLongPress: () -> Unit = {}
 ) {
     var longPressed by remember { mutableStateOf(false) }
@@ -96,7 +87,7 @@ fun ChatRow(
                     .combinedClickable(
                         onClick = {
                             longPressed = false
-                            onClick(chat.id)
+                            onClick(chat)
                         },
                         onLongClick = {
                             onLongPress()
@@ -138,7 +129,7 @@ fun ChatRow(
 
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        chat.time,
+                        chat.lastEventAt,
                         color = MaterialTheme.colorScheme.onBackground,
                         fontSize = 12.sp
                     )

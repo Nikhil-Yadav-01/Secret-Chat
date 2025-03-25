@@ -31,11 +31,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import com.rudraksha.secretchat.data.model.FileMetadata
-import com.rudraksha.secretchat.data.model.Message
+import com.rudraksha.secretchat.data.model.MessageEntity
 import com.rudraksha.secretchat.navigation.NavigationManager
 import com.rudraksha.secretchat.ui.theme.SecretChatTheme
+import com.rudraksha.secretchat.viewmodels.AuthViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.websocket.WebSockets
@@ -61,7 +63,7 @@ import java.io.File
 
 class ChatClient(
     private val username: String = "default",
-    private val messages: MutableList<Message> = mutableListOf()
+    private val messageEntities: MutableList<MessageEntity> = mutableListOf()
 ) {
     private val client = HttpClient(OkHttp) {
         engine {
@@ -71,13 +73,13 @@ class ChatClient(
         }
     }
     private var webSocketSession: WebSocketSession? = null
-    private var onMessageReceived: ((Message) -> Unit)? = null
+    private var onMessageReceived: ((MessageEntity) -> Unit)? = null
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     var isConnected = MutableStateFlow(false)
     private var connectionJob: Job? = null
 
-    fun connect(username: String = this.username, messages: MutableList<Message> = this.messages) {
+    fun connect(username: String = this.username, messageEntities: MutableList<MessageEntity> = this.messageEntities) {
         // Cancel any existing connection job
         connectionJob?.cancel()
 
@@ -94,9 +96,9 @@ class ChatClient(
                         webSocketSession?.incoming?.consumeEach { frame ->
                             when (frame) {
                                 is Frame.Text -> {
-                                    val message = Json.decodeFromString<Message>(frame.readText())
-                                    messages.add(message)
-                                    onMessageReceived?.invoke(message)
+                                    val messageEntity = Json.decodeFromString<MessageEntity>(frame.readText())
+                                    messageEntities.add(messageEntity)
+                                    onMessageReceived?.invoke(messageEntity)
                                 }
                                 is Frame.Binary -> {
                                     // Handle binary frames if needed
@@ -127,24 +129,24 @@ class ChatClient(
         }
     }
 
-    fun sendMessage(message: Message) {
+    fun sendMessage(messageEntity: MessageEntity) {
         scope.launch {
-            val jsonMessage = Json.encodeToString(message)
+            val jsonMessage = Json.encodeToString(messageEntity)
             webSocketSession?.send(Frame.Text(jsonMessage))
         }
     }
 
-    fun setOnMessageReceivedListener(listener: (Message) -> Unit) {
+    fun setOnMessageReceivedListener(listener: (MessageEntity) -> Unit) {
         onMessageReceived = listener
     }
 
-    private fun receiveMessage(messages: MutableList<Message>) {
+    private fun receiveMessage(messageEntities: MutableList<MessageEntity>) {
         scope.launch {
             webSocketSession?.incoming?.consumeEach { frame ->
                 when (frame) {
                     is Frame.Text -> {
-                        val message = Json.decodeFromString<Message>(frame.readText())
-                        messages.add(message)
+                        val messageEntity = Json.decodeFromString<MessageEntity>(frame.readText())
+                        messageEntities.add(messageEntity)
                     }
                     else -> {
                     }
@@ -168,7 +170,7 @@ class ChatClient(
         webSocketSession?.send(
             Frame.Text(
                 Json.encodeToString(
-                    Message(
+                    MessageEntity(
                         senderId = userName,
                         receiversId = recipient,
                         content = Json.encodeToString(fileMetadata),
@@ -207,11 +209,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             SecretChatTheme {
                 val navHostController = rememberNavController()
+                val authViewModel: AuthViewModel = viewModel()
                 NavigationManager(
                     navController = navHostController,
+                    authViewModel = authViewModel,
                     context = this,
                 )
-//                ChatApp()
             }
         }
     }
@@ -222,7 +225,7 @@ var userName: String = ""
 fun ChatApp() {
     var username by remember { mutableStateOf("") }
     var recipient by remember { mutableStateOf("") }
-    val messages = remember { mutableStateListOf<Message>() }
+    val messageEntities = remember { mutableStateListOf<MessageEntity>() }
     val chatClient = remember { ChatClient() }
     val isConnected by chatClient.isConnected.collectAsState()
 
@@ -247,7 +250,7 @@ fun ChatApp() {
                         CoroutineScope(Dispatchers.Default).launch {
                             chatClient.connect(
                                 username,
-                                messages
+                                messageEntities
                             )
                         }
                     }
@@ -259,7 +262,7 @@ fun ChatApp() {
                     CoroutineScope(Dispatchers.Default).launch {
                         chatClient.connect(
                             username,
-                            messages
+                            messageEntities
                         )
                     }
                 },
@@ -298,7 +301,7 @@ fun ChatApp() {
                 keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(onSend = {
                     chatClient.sendMessage(
-                        Message(
+                        MessageEntity(
                             content = message.value,
                             senderId = username,
                             receiversId = recipient
@@ -312,7 +315,7 @@ fun ChatApp() {
                 onClick = {
                     userName = username
                     chatClient.sendMessage(
-                        Message(
+                        MessageEntity(
                             content = message.value,
                             senderId = username,
                             receiversId = recipient
@@ -329,7 +332,7 @@ fun ChatApp() {
 
             Spacer(modifier = Modifier.height(16.dp))
             Text("Chat Messages:")
-            messages.forEach { msg ->
+            messageEntities.forEach { msg ->
                 Text("${msg.senderId}: ${msg.content}")
             }
         }
@@ -338,15 +341,15 @@ fun ChatApp() {
 
 @Preview
 @Composable
-fun ChatBubble(message: Message = Message(senderId = "se")) {
+fun ChatBubble(messageEntity: MessageEntity = MessageEntity(senderId = "se")) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(4.dp)
-            .background(if (message.senderId == "default") Color.Blue else Color.Gray)
+            .background(if (messageEntity.senderId == "default") Color.Blue else Color.Gray)
             .padding(8.dp),
-        contentAlignment = if (message.senderId == "default") Alignment.CenterEnd else Alignment.CenterStart
+        contentAlignment = if (messageEntity.senderId == "default") Alignment.CenterEnd else Alignment.CenterStart
     ) {
-        Text(text = message.content ?: "", color = Color.White)
+        Text(text = messageEntity.content ?: "", color = Color.White)
     }
 }

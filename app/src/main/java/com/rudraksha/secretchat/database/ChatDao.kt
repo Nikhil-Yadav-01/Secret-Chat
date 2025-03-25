@@ -1,23 +1,22 @@
 package com.rudraksha.secretchat.database
 
 import androidx.room.Dao
-import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import com.rudraksha.secretchat.data.model.Chat
+import com.rudraksha.secretchat.data.model.ChatEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ChatDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertChat(chat: Chat)
+    suspend fun insertChat(chatEntity: ChatEntity)
 
     @Query("SELECT * FROM chats ORDER BY createdAt DESC")
-    fun getAllChats(): Flow<List<Chat>>
+    fun getAllChats(): Flow<List<ChatEntity>>
 
     @Query("SELECT * FROM chats WHERE chatId = :chatId LIMIT 1")
-    suspend fun getChatById(chatId: String): Chat?
+    suspend fun getChatById(chatId: String): ChatEntity?
 
 //    @Delete(entity = Chat::class)
 //    suspend fun deleteChat(id: String)

@@ -1,7 +1,5 @@
 package com.rudraksha.secretchat.ui.screens.chat
 
-import android.util.Log
-import android.widget.Toast
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -22,7 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -37,7 +35,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,15 +46,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rudraksha.secretchat.R
-import com.rudraksha.secretchat.data.model.Message
+import com.rudraksha.secretchat.data.model.MessageEntity
 import com.rudraksha.secretchat.ui.screens.common.MessageInput
-import com.rudraksha.secretchat.viewmodels.ChatDetailUiState
+import com.rudraksha.secretchat.ui.screens.common.SearchBar
+import com.rudraksha.secretchat.viewmodels.MessagesUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -68,48 +66,82 @@ fun ChatScreen(
     username: String = "",
     chatName: String = "",
     sendMessage: (String) -> Unit,
-    onNavIconClick: () -> Unit,
-    chatDetailUiState: State<ChatDetailUiState>,
-    onMessageReaction: (Message, String) -> Unit = { _, _ -> },
-    updateAllMessages: (List<Message>) -> Unit = {}
+    navigateBack: () -> Unit,
+    observeMessagesUiState: StateFlow<MessagesUiState>,
+    onMessageReaction: (MessageEntity, String) -> Unit = { _, _ -> },
+    updateAllMessages: (List<MessageEntity>) -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
+    var showSearch by remember { mutableStateOf(false) }
     var showBottomSheet by remember { mutableStateOf(false) }
-    val bottomSheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = true
-    )
+    val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var sheetHeight by remember { mutableStateOf(0.dp) }
     val animatedHeight by animateDpAsState(
         targetValue = 400.dp,
         animationSpec = tween(durationMillis = 700, easing = LinearOutSlowInEasing),
         label = "Bottom sheet height"
     )
-    val context = LocalContext.current
-    val messages = chatDetailUiState.value.messages
-    val isConnected = chatDetailUiState.value.isConnected
-    val toastMessage = chatDetailUiState.value.toastMessage
-
-    LaunchedEffect(Unit, messages, isConnected, toastMessage) {
-        Log.d("CS", messages.toString())
-        Log.d("CS", isConnected.toString())
-        Log.d("CS", toastMessage.toString())
-//        toastMessage?.let {
-//            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
-//        }
-    }
+    val chatDetailUiState by observeMessagesUiState.collectAsStateWithLifecycle()
+    val messages by remember { derivedStateOf { chatDetailUiState.messageEntities } }
+    val isConnected by remember { derivedStateOf { chatDetailUiState.isConnected } }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(text = chatName) },
-                navigationIcon = {
-                    IconButton(onClick = onNavIconClick) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Default.ArrowBack,
-                            contentDescription = "Back"
+                title = {
+                    if (showSearch) {
+                        SearchBar(
+                            text = "Search chat",
+                            leadingIcon = {
+                                IconButton(
+                                    onClick = {
+                                        if (showSearch) showSearch = false
+                                        else navigateBack()
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "Back",
+                                        tint = MaterialTheme.colorScheme.onBackground
+                                    )
+                                }
+                            }
+                        )
+                    } else {
+                        Text(
+                            text = chatName,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            style = MaterialTheme.typography.headlineMedium
                         )
                     }
-                }
+                },
+                navigationIcon = {
+                    if (!showSearch) {
+                        IconButton(
+                            onClick = {
+                                navigateBack()
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = MaterialTheme.colorScheme.onBackground
+                            )
+                        }
+                    }
+                },
+                actions = {
+                    if (!showSearch) {
+                        IconButton(onClick = {
+                            showSearch = true
+                        }) {
+                            Icon(
+                                imageVector = Icons.Filled.Search,
+                                contentDescription = "search"
+                            )
+                        }
+                    }
+                },
             )
         },
         bottomBar = {
@@ -130,7 +162,7 @@ fun ChatScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(topStartPercent = 50, topEndPercent = 50))
+                                .clip(RoundedCornerShape(percent = 50))
                                 .background(MaterialTheme.colorScheme.errorContainer),
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
@@ -168,7 +200,7 @@ fun ChatScreen(
                 messages?.let { it ->
                     items(it) { message ->
                         ChatBubble(
-                            message = message,
+                            messageEntity = message,
                             byMe = message.senderId == username
                         )
                     }
@@ -222,23 +254,23 @@ fun ChatScreen(
 @Composable
 fun ChatPreview() {
     val state = MutableStateFlow(listOf(
-        Message(content = "a", senderId = "", timestamp = 1000000L),
-        Message(content = "a", senderId = "", timestamp = 2000000L),
-        Message(content = "a", senderId = "A", timestamp = 3000000L),
-        Message(senderId = "", timestamp = 4000000L),
-        Message(senderId = "A", timestamp = 8000000L),
-        Message(senderId = "A", timestamp = 10000000L),
+        MessageEntity(content = "a", senderId = "", timestamp = 1000000L),
+        MessageEntity(content = "a", senderId = "", timestamp = 2000000L),
+        MessageEntity(content = "a", senderId = "A", timestamp = 3000000L),
+        MessageEntity(senderId = "", timestamp = 4000000L),
+        MessageEntity(senderId = "A", timestamp = 8000000L),
+        MessageEntity(senderId = "A", timestamp = 10000000L),
     ).sortedBy { it.timestamp }.reversed())
 
-    var _chatDetailUiState = MutableStateFlow<ChatDetailUiState>(ChatDetailUiState())
-    val chatDetailUiState: StateFlow<ChatDetailUiState> = _chatDetailUiState.asStateFlow()
+    var _messagesUiState = MutableStateFlow<MessagesUiState>(MessagesUiState())
+    val messagesUiState: StateFlow<MessagesUiState> = _messagesUiState.asStateFlow()
 
     ChatScreen(
         username = "A",
         chatName = "Chat Name",
         sendMessage = {},
-        onNavIconClick = {},
-        chatDetailUiState = chatDetailUiState.collectAsStateWithLifecycle(),
+        navigateBack = {},
+        observeMessagesUiState = messagesUiState,
         onMessageReaction = { _, _ ->}
     )
 }

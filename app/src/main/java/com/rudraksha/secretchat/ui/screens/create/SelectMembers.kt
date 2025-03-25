@@ -40,6 +40,8 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.rudraksha.secretchat.data.model.ChatType
 import com.rudraksha.secretchat.ui.screens.common.SearchBar
+import com.rudraksha.secretchat.ui.screens.home.JoinRequest
+import com.rudraksha.secretchat.ui.screens.home.JoinResponse
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Preview
@@ -51,6 +53,9 @@ fun SelectMembersScreen(
     onUserItemClick: (String) -> Unit = {},
     userList: List<UserItem> = listOf(),
     create: (List<String>, String) -> Unit = { _, _ -> },
+//    sendJoinRequest: (JoinRequest) -> Unit = {},
+//    acceptJoinRequest: (JoinResponse) -> Unit = {},
+//    rejectJoinRequest: (JoinResponse) -> Unit = {},
 ) {
     val selectedUsers: MutableList<UserItem> = remember { mutableStateListOf() }
     var name by remember { mutableStateOf("") }
@@ -61,9 +66,7 @@ fun SelectMembersScreen(
             TopAppBar(
                 title = {
                     if (showSearch) {
-                        SearchBar(
-                            text = "Search members",
-                        )
+                        SearchBar(text = "Search members",)
                     } else {
                         Text(
                             when (chatType) {
@@ -106,12 +109,9 @@ fun SelectMembersScreen(
         floatingActionButton = {
             // Floating Action Button
             FloatingActionButton(
-                onClick = {
-                    create(selectedUsers.map { it.username }, name)
-                },
+                onClick = { create(selectedUsers.map { it.username }, name) },
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier
-                    .padding(16.dp)
+                modifier = Modifier.padding(16.dp)
             ) {
                 Icon(
                     Icons.Default.Add,
@@ -122,6 +122,7 @@ fun SelectMembersScreen(
         },
         floatingActionButtonPosition = FabPosition.End
     ) { paddingValues ->
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -132,10 +133,8 @@ fun SelectMembersScreen(
                 item {
                     OutlinedTextField(
                         value = name,
-                        onValueChange = {
-                            name = it
-                        },
-                        label = { Text("Group name") },
+                        onValueChange = { name = it },
+                        label = { Text("Chat name") },
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
                     )
                 }

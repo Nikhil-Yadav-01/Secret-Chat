@@ -25,6 +25,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -69,7 +70,7 @@ fun ChatDialog(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .wrapContentHeight(),
+                .height(280.dp),
             colors = CardColors(
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -79,21 +80,26 @@ fun ChatDialog(
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentHeight()
+                    .fillMaxSize()
                     .padding(16.dp),
                 horizontalAlignment = Alignment.Start,
                 verticalArrangement = Arrangement.Center
             ) {
-                Text(
-                    "Create new chat",
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.fillMaxWidth().height(16.dp))
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "Create new",
+                        style = MaterialTheme.typography.headlineLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Spacer(modifier = Modifier.fillMaxWidth().height(24.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth()
+                        .height(50.dp)
                         .clickable {
                             scope.launch {
                                 selectMembers(ChatType.GROUP)
@@ -121,10 +127,16 @@ fun ChatDialog(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
-                Spacer(modifier = Modifier.fillMaxWidth().height(8.dp))
+                Spacer(modifier = Modifier.fillMaxWidth().height(4.dp))
+                HorizontalDivider(
+                    modifier = Modifier.fillMaxWidth().height(4.dp),
+                    thickness = 1.dp,
+                    color = MaterialTheme.colorScheme.background
+                )
 
                 Row(
                     modifier = Modifier.fillMaxWidth()
+                        .height(50.dp)
                         .clickable {
                             scope.launch {
                                 selectMembers(ChatType.PRIVATE)
@@ -152,10 +164,16 @@ fun ChatDialog(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
-                Spacer(modifier = Modifier.fillMaxWidth().height(8.dp))
+                Spacer(modifier = Modifier.fillMaxWidth().height(4.dp))
+                HorizontalDivider(
+                    modifier = Modifier.fillMaxWidth().height(4.dp),
+                    thickness = 1.dp,
+                    color = MaterialTheme.colorScheme.background
+                )
 
                 Row(
                     modifier = Modifier.fillMaxWidth()
+                        .height(50.dp)
                         .clickable {
                             scope.launch {
                                 selectMembers(ChatType.SECRET)
@@ -300,7 +318,6 @@ fun SendChatRequest(
         }
     }
 }
-
 
 @Preview
 @Composable

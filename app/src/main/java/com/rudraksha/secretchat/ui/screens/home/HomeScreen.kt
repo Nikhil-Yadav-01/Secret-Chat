@@ -41,6 +41,7 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.rudraksha.secretchat.R
 import com.rudraksha.secretchat.data.model.ChatItem
+import com.rudraksha.secretchat.data.model.ChatType
 import com.rudraksha.secretchat.navigation.Routes
 import com.rudraksha.secretchat.ui.screens.common.BottomNavigationBar
 import com.rudraksha.secretchat.ui.screens.common.SearchBar
@@ -52,23 +53,17 @@ import java.util.UUID
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
-    onChatItemClick: (String) -> Unit = {},
+    onChatItemClick: (ChatItem) -> Unit = {},
     chatList: List<ChatItem> = getChatList(),
+    selectMembers: (ChatType) -> Unit = {},
     navController: NavController = rememberNavController(),
-    sendJoinRequest: (JoinRequest) -> Unit = {},
-    acceptJoinRequest: (JoinResponse) -> Unit = {},
-    rejectJoinRequest: (JoinResponse) -> Unit = {}
 ) {
     var longPressed by remember { mutableStateOf(false) }
     var showDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    fun dismissDialog() {
-        scope.launch { showDialog = false }
-    }
-    fun launchDialog() {
-        scope.launch { showDialog = true }
-    }
+    fun dismissDialog() { scope.launch { showDialog = false } }
+    fun launchDialog() { scope.launch { showDialog = true } }
 
     Scaffold(
         topBar = {
@@ -84,7 +79,7 @@ fun HomeScreen(
                             )
                         }
                     }
-                    IconButton(onClick = { navController.navigate(Routes.InvisibleChat.route) }) {
+                    IconButton(onClick = { navController.navigate(Routes.InvisibleChat) }) {
                         Box(
                             modifier = Modifier.wrapContentSize(),
                             contentAlignment = Alignment.BottomCenter
@@ -143,13 +138,14 @@ fun HomeScreen(
         ) {
             // Chat List
             if (showDialog) {
-                SendChatRequest(
-                    sendRequest = {
+                ChatDialog(
+                    dismissDialog = { dismissDialog() },
+                    selectMembers = { chatType ->
                         scope.launch {
-                            sendJoinRequest(it)
+                            dismissDialog()
+                            selectMembers(chatType)
                         }
-                    },
-                    dismissDialog = { dismissDialog() }
+                    }
                 )
             }
             LazyColumn(
@@ -202,6 +198,8 @@ fun getChatList() = listOf(
     ChatItem(
         id = UUID.randomUUID().toString(),
         "+91 94553 66424 (You)",
+        type = ChatType.PRIVATE,
+        receivers = listOf(""),
         "import androidx.compose.foundati...",
         "Yesterday",
         0,
@@ -210,6 +208,8 @@ fun getChatList() = listOf(
     ChatItem(
         id = UUID.randomUUID().toString(),
         "Coding Club India : Coder",
+        type = ChatType.PRIVATE,
+        receivers = listOf(""),
         "Job At Zomato Success St...",
         "09:46",
         6,
@@ -218,6 +218,8 @@ fun getChatList() = listOf(
     ChatItem(
         id = UUID.randomUUID().toString(),
         "Sandhya 215",
+        type = ChatType.PRIVATE,
+        receivers = listOf(""),
         "📷 Photo",
         "07:16",
         1,
@@ -226,6 +228,8 @@ fun getChatList() = listOf(
     ChatItem(
         id = UUID.randomUUID().toString(),
         "DAD",
+        type = ChatType.PRIVATE,
+        receivers = listOf(""),
         "📄 SUBHASH CHAND - CV.doc",
         "Yesterday",
         0,
@@ -234,6 +238,8 @@ fun getChatList() = listOf(
     ChatItem(
         id = UUID.randomUUID().toString(),
         "Amresh Thailand",
+        type = ChatType.PRIVATE,
+        receivers = listOf(""),
         "❌ Missed voice call",
         "Yesterday",
         0,
@@ -242,6 +248,8 @@ fun getChatList() = listOf(
     ChatItem(
         id = UUID.randomUUID().toString(),
         "LetsUpgrade Community",
+        type = ChatType.PRIVATE,
+        receivers = listOf(""),
         "📢 Help Us Build the...",
         "Yesterday",
         1,
@@ -250,6 +258,8 @@ fun getChatList() = listOf(
     ChatItem(
         id = UUID.randomUUID().toString(),
         "Ujjwal Jr",
+        type = ChatType.PRIVATE,
+        receivers = listOf(""),
         "👍 You reacted to \"Audio\"",
         "Yesterday",
         0,
@@ -258,6 +268,8 @@ fun getChatList() = listOf(
     ChatItem(
         id = UUID.randomUUID().toString(),
         "Access Denied Official",
+        type = ChatType.PRIVATE,
+        receivers = listOf(""),
         "Priyanka: Yes",
         "Yesterday",
         3,

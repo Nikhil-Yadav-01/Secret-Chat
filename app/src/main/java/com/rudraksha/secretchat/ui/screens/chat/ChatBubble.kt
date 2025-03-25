@@ -20,10 +20,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.rudraksha.secretchat.data.model.Message
+import com.rudraksha.secretchat.data.model.MessageEntity
 
 @Composable
-fun ChatBubble(message: Message, byMe: Boolean = true) {
+fun ChatBubble(messageEntity: MessageEntity, byMe: Boolean = true) {
     val bubbleColor = if (byMe) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.tertiaryContainer
     val textColor = if (byMe) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onTertiaryContainer
     val bubbleShape = if (byMe) {
@@ -45,11 +45,11 @@ fun ChatBubble(message: Message, byMe: Boolean = true) {
                 .background(bubbleColor, shape = bubbleShape)
                 .padding(8.dp)
         ) {
-            Text(text = message.content ?: "", color = textColor)
+            Text(text = messageEntity.content ?: "", color = textColor)
             Spacer(modifier = Modifier.height(4.dp))
             // Display timestamp in a smaller font.
             Text(
-                text = DateFormat.format("hh:mm a", message.timestamp).toString(),
+                text = DateFormat.format("hh:mm a", messageEntity.timestamp).toString(),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.align(Alignment.End)

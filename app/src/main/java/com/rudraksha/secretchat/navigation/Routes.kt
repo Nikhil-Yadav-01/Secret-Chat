@@ -18,6 +18,9 @@ sealed class Routes(val route: String) {
     data object Home: Routes("home")
 
     @Serializable
+    data object SelectMembers: Routes("create")
+
+    @Serializable
     data object Calls: Routes("calls")
 
     @Serializable

@@ -21,7 +21,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,20 +35,24 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 //@Preview
 @Composable
 fun LoginScreen(
     login: (String, String) -> Unit = { _, _ -> },
-    observeLoginState: State<String>,
+    observeLoginState: StateFlow<String>,
     navigateToRegister: () -> Unit = {},
     onLoginSuccess: () -> Unit = {}
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    val loginState by observeLoginState
+    val loginState by observeLoginState.collectAsStateWithLifecycle()
     var passwordVisible by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
@@ -125,14 +128,14 @@ fun LoginScreen(
 @Preview(showBackground = true)
 @Composable
 fun LoginPreview() {
-    val mockRegisterState = remember { mutableStateOf("") }
+    val _chatDetailUiState = MutableStateFlow<String>("")
+    val chatDetailUiState: StateFlow<String> = _chatDetailUiState.asStateFlow()
 
     LoginScreen(
         login = { _, _ ->
-            mockRegisterState.value = "Mock registration successful"
         },
-        observeLoginState = mockRegisterState,
-        navigateToRegister = { /* Mock Navigation */ },
-        onLoginSuccess = { mockRegisterState.value = "Navigating to Home..." }
+        observeLoginState = chatDetailUiState,
+        navigateToRegister = {  },
+        onLoginSuccess = { }
     )
 }

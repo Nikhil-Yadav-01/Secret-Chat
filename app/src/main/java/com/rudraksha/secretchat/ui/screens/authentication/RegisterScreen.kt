@@ -18,14 +18,17 @@ import androidx.compose.ui.text.input.*
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.rudraksha.secretchat.data.model.User
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 @Composable
 fun RegisterScreen(
     register: (String, String, String, String, String) -> Unit,
-    observeRegisterState: State<String>,
-    onNavigateToLogin: () -> Unit = {},
+    observeRegisterState: StateFlow<String>,
+    navigateToLogin: () -> Unit = {},
     onRegisterSuccess: () -> Unit = {}
 ) {
     var fullName by remember { mutableStateOf("") }
@@ -35,7 +38,7 @@ fun RegisterScreen(
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
-    val registerState by observeRegisterState
+    val registerState by observeRegisterState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -166,7 +169,7 @@ fun RegisterScreen(
             Text("Register")
         }
 
-        TextButton(onClick = onNavigateToLogin) {
+        TextButton(onClick = navigateToLogin) {
             Text("Already have an account? Login")
         }
     }
@@ -175,14 +178,13 @@ fun RegisterScreen(
 @Preview(showBackground = true)
 @Composable
 fun RegisterPreview() {
-    val mockRegisterState = remember { mutableStateOf("") }
+    val _chatDetailUiState = MutableStateFlow<String>("")
+    val chatDetailUiState: StateFlow<String> = _chatDetailUiState.asStateFlow()
 
     RegisterScreen(
-        register = { _, _, _, _, _ ->
-            mockRegisterState.value = "Mock registration successful"
-        },
-        observeRegisterState = mockRegisterState,
-        onNavigateToLogin = { /* Mock Navigation */ },
-        onRegisterSuccess = { mockRegisterState.value = "Navigating to Home..." }
+        register = { _, _, _, _, _ -> },
+        observeRegisterState = chatDetailUiState,
+        navigateToLogin = { /* Mock Navigation */ },
+        onRegisterSuccess = { }
     )
 }

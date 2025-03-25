@@ -2,10 +2,8 @@ package com.rudraksha.secretchat.data.model
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
-import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverters
-import com.rudraksha.secretchat.data.WebSocketData
 import com.rudraksha.secretchat.data.converters.Converters
 import kotlinx.serialization.Serializable
 import java.util.UUID
@@ -15,7 +13,7 @@ import java.util.UUID
 @Entity(
     tableName = "messages",
 )
-data class Message(
+data class MessageEntity(
     @PrimaryKey val messageId: String = UUID.randomUUID().toString(),
     val senderId: String,
     @ColumnInfo(name = "chatId") val chatId: String = "",
