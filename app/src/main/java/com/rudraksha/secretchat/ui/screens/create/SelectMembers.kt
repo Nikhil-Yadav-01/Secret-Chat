@@ -39,9 +39,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.rudraksha.secretchat.data.model.ChatType
-import com.rudraksha.secretchat.ui.screens.common.SearchBar
-import com.rudraksha.secretchat.ui.screens.home.JoinRequest
-import com.rudraksha.secretchat.ui.screens.home.JoinResponse
+import com.rudraksha.secretchat.ui.components.SearchBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Preview

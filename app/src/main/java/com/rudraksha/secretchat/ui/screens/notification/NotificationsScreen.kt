@@ -23,7 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.rudraksha.secretchat.data.WebSocketData
-import com.rudraksha.secretchat.ui.screens.common.SearchBar
+import com.rudraksha.secretchat.ui.components.SearchBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Preview

@@ -8,12 +8,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.rudraksha.secretchat.data.WebSocketData
-import com.rudraksha.secretchat.data.model.ChatEntity
+import com.rudraksha.secretchat.data.entity.ChatEntity
 import com.rudraksha.secretchat.data.model.ChatType
-import com.rudraksha.secretchat.data.model.MessageEntity
-import com.rudraksha.secretchat.data.remote.WebSocketManager
+import com.rudraksha.secretchat.data.entity.MessageEntity
+import com.rudraksha.secretchat.network.WebSocketManager
 import com.rudraksha.secretchat.data.toMessage
-import com.rudraksha.secretchat.database.ChatDatabase
 import com.rudraksha.secretchat.utils.createChatId
 import com.rudraksha.secretchat.utils.getReceivers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -121,6 +120,7 @@ class InvisibleChatViewModel(application: Application, private val webSocketMana
             createdBy = webSocketManager.username,
         )
         _invisibleChatUiState.value.chatEntity = newChat
+        Log.d("chatC", "created")
     }
 }
 

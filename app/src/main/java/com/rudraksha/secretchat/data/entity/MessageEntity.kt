@@ -1,10 +1,11 @@
-package com.rudraksha.secretchat.data.model
+package com.rudraksha.secretchat.data.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverters
 import com.rudraksha.secretchat.data.converters.Converters
+import com.rudraksha.secretchat.data.model.MessageType
 import kotlinx.serialization.Serializable
 import java.util.UUID
 
@@ -16,7 +17,7 @@ import java.util.UUID
 data class MessageEntity(
     @PrimaryKey val messageId: String = UUID.randomUUID().toString(),
     val senderId: String,
-    @ColumnInfo(name = "chatId") val chatId: String = "",
+    val chatId: String = "",
     // For Room, store receiversId as a comma-separated string; a TypeConverter can convert to List<String>
     val receiversId: String = "",
     val timestamp: Long = System.currentTimeMillis(),

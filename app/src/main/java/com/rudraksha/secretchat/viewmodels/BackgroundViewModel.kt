@@ -8,7 +8,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.rudraksha.secretchat.data.WebSocketData
-import com.rudraksha.secretchat.data.remote.WebSocketManager
+import com.rudraksha.secretchat.network.WebSocketManager
 import com.rudraksha.secretchat.data.toMessage
 import com.rudraksha.secretchat.database.ChatDatabase
 import kotlinx.coroutines.flow.collectLatest

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Base gradient background -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="135"
+                android:startColor="#0A0A14"
+                android:centerColor="#1A1F35"
+                android:endColor="#0F1525" />
+        </shape>
+    </item>
+    
+    <!-- Random security pattern dots -->
+    <item>
+        <bitmap
+            android:src="@drawable/pattern_dots"
+            android:tileMode="repeat"
+            android:alpha="0.05" />
+    </item>
+    
+    <!-- Subtle glow effect -->
+    <item>
+        <shape android:shape="oval">
+            <gradient
+                android:type="radial"
+                android:gradientRadius="600dp"
+                android:centerX="0.65"
+                android:centerY="0.3"
+                android:startColor="#300E7DFF"
+                android:endColor="#00000000" />
+        </shape>
+    </item>
+</layer-list> 

@@ -4,7 +4,7 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.rudraksha.secretchat.data.model.ChatEntity
+import com.rudraksha.secretchat.data.entity.ChatEntity
 import com.rudraksha.secretchat.database.ChatDatabase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

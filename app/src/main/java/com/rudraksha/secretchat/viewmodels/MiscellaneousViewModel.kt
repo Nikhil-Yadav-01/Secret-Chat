@@ -8,10 +8,10 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.rudraksha.secretchat.data.WebSocketData
-import com.rudraksha.secretchat.data.model.ChatEntity
+import com.rudraksha.secretchat.data.entity.ChatEntity
 import com.rudraksha.secretchat.data.model.ChatType
-import com.rudraksha.secretchat.data.model.UserEntity
-import com.rudraksha.secretchat.data.remote.WebSocketManager
+import com.rudraksha.secretchat.data.entity.UserEntity
+import com.rudraksha.secretchat.network.WebSocketManager
 import com.rudraksha.secretchat.database.ChatDatabase
 import com.rudraksha.secretchat.utils.createChatId
 import kotlinx.coroutines.Dispatchers
@@ -34,6 +34,12 @@ class MiscellaneousViewModel(application: Application, private val webSocketMana
             webSocketManager.setOnDataReceivedListener { webSocketData ->
                 viewModelScope.launch {
                     when (webSocketData) {
+                        is WebSocketData.GetUsers -> {
+                            Log.d("MVM Listener GU", webSocketData.toString())
+//                            _miscellaneousUiState.value = _miscellaneousUiState.value.copy(
+//                                users = webSocketData
+//                            )
+                        }
                         is WebSocketData.ChatList -> {
                             Log.d("MVM Listener CL", webSocketData.toString())
                             _miscellaneousUiState.value = _miscellaneousUiState.value.copy(

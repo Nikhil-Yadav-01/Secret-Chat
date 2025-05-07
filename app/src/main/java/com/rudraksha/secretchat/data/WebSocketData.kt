@@ -1,7 +1,7 @@
 package com.rudraksha.secretchat.data
 
 import com.rudraksha.secretchat.data.model.ChatType
-import com.rudraksha.secretchat.data.model.MessageEntity
+import com.rudraksha.secretchat.data.entity.MessageEntity
 import kotlinx.serialization.Polymorphic
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

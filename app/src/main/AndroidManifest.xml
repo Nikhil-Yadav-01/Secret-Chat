@@ -8,16 +8,18 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
     <application
+        android:name=".SecretChatApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@drawable/logo_secret_chat"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
+        android:roundIcon="@drawable/logo_secret_chat"
         android:supportsRtl="true"
-        android:theme="@style/Theme.SecretChat"
+        android:theme="@style/Theme.SecretChat.Starting"
         android:networkSecurityConfig="@xml/network_security"
         tools:targetApi="31">
         <activity

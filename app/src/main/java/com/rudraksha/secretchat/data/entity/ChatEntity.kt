@@ -1,4 +1,4 @@
-package com.rudraksha.secretchat.data.model
+package com.rudraksha.secretchat.data.entity
 
 import android.text.format.DateFormat
 import androidx.room.Entity
@@ -6,6 +6,8 @@ import androidx.room.PrimaryKey
 import androidx.room.TypeConverters
 import com.rudraksha.secretchat.R
 import com.rudraksha.secretchat.data.converters.Converters
+import com.rudraksha.secretchat.data.model.ChatItem
+import com.rudraksha.secretchat.data.model.ChatType
 import com.rudraksha.secretchat.utils.getReceivers
 import kotlinx.serialization.Serializable
 import java.util.UUID

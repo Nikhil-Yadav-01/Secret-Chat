@@ -40,6 +40,9 @@ android {
     buildFeatures {
         compose = true
     }
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.8"
+    }
 }
 
 dependencies {
@@ -54,21 +57,35 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.material.icons.extended)
+    
+    // Material 3
+    implementation("androidx.compose.material3:material3:1.2.1")
+    implementation("androidx.compose.material3:material3-window-size-class:1.2.1")
 
     // Ktor
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)
     implementation(libs.ktor.client.websockets)
     implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.3")
+    implementation("io.ktor:ktor-client-content-negotiation:3.0.3")
+    implementation("io.ktor:ktor-client-logging:3.0.3")
 
     // Kotlin Serialization core library
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.7.3") // Use the latest version
+
+    // Splash screen
+    implementation("androidx.core:core-splashscreen:1.0.1")
+
+    // Security
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation("androidx.biometric:biometric:1.2.0-alpha05")
 
     // DI
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
     // Coil
     implementation(libs.coil.compose)
+
     // Work manager
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.room.runtime)

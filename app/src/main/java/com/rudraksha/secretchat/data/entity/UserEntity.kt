@@ -1,4 +1,4 @@
-package com.rudraksha.secretchat.data.model
+package com.rudraksha.secretchat.data.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey

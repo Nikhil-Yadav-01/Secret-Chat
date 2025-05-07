@@ -20,7 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.rudraksha.secretchat.data.model.MessageEntity
+import com.rudraksha.secretchat.data.entity.MessageEntity
 
 @Composable
 fun ChatBubble(messageEntity: MessageEntity, byMe: Boolean = true) {

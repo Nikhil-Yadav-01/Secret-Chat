@@ -51,9 +51,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rudraksha.secretchat.R
-import com.rudraksha.secretchat.data.model.MessageEntity
-import com.rudraksha.secretchat.ui.screens.common.MessageInput
-import com.rudraksha.secretchat.ui.screens.common.SearchBar
+import com.rudraksha.secretchat.data.entity.MessageEntity
+import com.rudraksha.secretchat.ui.components.MessageInput
+import com.rudraksha.secretchat.ui.components.SearchBar
 import com.rudraksha.secretchat.viewmodels.MessagesUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -172,7 +172,7 @@ fun ChatScreen(
                                 modifier = Modifier.size(16.dp),
                                 contentDescription = null
                             )
-                            Text("No Internet connection")
+                            Text("Not connected to server")
                         }
                     }
                 }

@@ -68,27 +68,9 @@ import androidx.compose.ui.util.lerp
 import androidx.core.net.toFile
 import com.rudraksha.secretchat.R
 import com.rudraksha.secretchat.data.model.ProfileScreenState
+import com.rudraksha.secretchat.ui.components.FunctionalityNotAvailablePopup
 import com.rudraksha.secretchat.ui.theme.SecretChatTheme
 import kotlin.math.roundToInt
-
-@Composable
-fun FunctionalityNotAvailablePopup(onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        text = {
-            Text(
-                text = "Functionality not available \uD83D\uDE48",
-                style = MaterialTheme.typography.bodyMedium
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = "CLOSE")
-            }
-        }
-    )
-}
-
 
 @Composable
 fun ProfileScreen(
@@ -105,6 +87,7 @@ fun ProfileScreen(
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
+            .padding(16.dp)
             .nestedScroll(nestedScrollInteropConnection)
             .systemBarsPadding()
     ) {
@@ -190,7 +173,7 @@ private fun Name(userData: ProfileScreenState, modifier: Modifier = Modifier) {
     Text(
         text = userData.name,
         modifier = modifier,
-        style = MaterialTheme.typography.headlineSmall
+        style = MaterialTheme.typography.headlineLarge
     )
 }
 
@@ -219,7 +202,6 @@ private fun ProfileHeader(
             modifier = Modifier
                 .heightIn(max = containerHeight / 2)
                 .fillMaxWidth()
-                // TODO: Update to use offset to avoid recomposition
                 .padding(
                     start = 16.dp,
                     top = offsetDp,
@@ -233,8 +215,13 @@ private fun ProfileHeader(
 }
 
 @Composable
-fun ProfileProperty(label: String, value: String, isLink: Boolean = false) {
-    Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
+fun ProfileProperty(
+    label: String, value: String, isLink: Boolean = false
+) {
+    Column(
+        modifier = Modifier
+            .padding(bottom = 16.dp)
+    ) {
         HorizontalDivider()
         Text(
             text = label,
@@ -287,21 +274,6 @@ fun ProfileFab(
                 extended = extended
             )
         }
-    }
-}
-
-@Preview
-@Composable
-fun ProfileFabPreview() {
-    SecretChatTheme {
-        ProfileScreen(
-            userData = ProfileScreenState(
-                userId = "2132",
-                name = "nvjdbjvnsl",
-                status = true,
-                desc = "njgj c jf jvn 1 15131 ygsdbnsn 45"
-            )
-        )
     }
 }
 

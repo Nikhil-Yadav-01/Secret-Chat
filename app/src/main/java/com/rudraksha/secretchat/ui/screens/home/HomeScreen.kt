@@ -17,6 +17,8 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FloatingActionButton
@@ -43,8 +45,8 @@ import com.rudraksha.secretchat.R
 import com.rudraksha.secretchat.data.model.ChatItem
 import com.rudraksha.secretchat.data.model.ChatType
 import com.rudraksha.secretchat.navigation.Routes
-import com.rudraksha.secretchat.ui.screens.common.BottomNavigationBar
-import com.rudraksha.secretchat.ui.screens.common.SearchBar
+import com.rudraksha.secretchat.ui.components.BottomNavigationBar
+import com.rudraksha.secretchat.ui.components.SearchBar
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -53,13 +55,17 @@ import java.util.UUID
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
-    onChatItemClick: (ChatItem) -> Unit = {},
     chatList: List<ChatItem> = getChatList(),
+    onChatItemClick: (ChatItem) -> Unit = {},
     selectMembers: (ChatType) -> Unit = {},
-    navController: NavController = rememberNavController(),
+    navigateToProfile: () -> Unit = {},
+    navigateToSettings: () -> Unit = {},
+    navigateToNotifications: () -> Unit = {},
+    navigateToInvisibleChat: () -> Unit = {}
 ) {
     var longPressed by remember { mutableStateOf(false) }
     var showDialog by remember { mutableStateOf(false) }
+    var showMoreMenu by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     fun dismissDialog() { scope.launch { showDialog = false } }
@@ -79,7 +85,9 @@ fun HomeScreen(
                             )
                         }
                     }
-                    IconButton(onClick = { navController.navigate(Routes.InvisibleChat) }) {
+                    IconButton(
+                        onClick = navigateToInvisibleChat
+                    ) {
                         Box(
                             modifier = Modifier.wrapContentSize(),
                             contentAlignment = Alignment.BottomCenter
@@ -104,17 +112,46 @@ fun HomeScreen(
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
-                    IconButton(onClick = { /* More options */ }) {
-                        Icon(
-                            Icons.Default.MoreVert,
-                            contentDescription = "More",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                    Box {
+                        IconButton(onClick = { showMoreMenu = true }) {
+                            Icon(
+                                Icons.Default.MoreVert,
+                                contentDescription = "More",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = showMoreMenu,
+                            onDismissRequest = { showMoreMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Profile") },
+                                onClick = {
+                                    navigateToProfile()
+                                    showMoreMenu = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Settings") },
+                                onClick = {
+                                    navigateToSettings()
+                                    showMoreMenu = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Notifications") },
+                                onClick = {
+                                    navigateToNotifications()
+                                    showMoreMenu = false
+                                }
+                            )
+                        }
                     }
                 }
             )
         },
-        bottomBar = { BottomNavigationBar() },
+        bottomBar = { BottomNavigationBar(onProfileClick = navigateToProfile, onSettingsClick = navigateToSettings) },
         floatingActionButton = {
             // Floating Action Button
             FloatingActionButton(

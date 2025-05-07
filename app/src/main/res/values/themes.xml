@@ -1,5 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.SecretChat" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.SecretChat" parent="android:Theme.Material.NoActionBar">
+        <!-- Status bar color -->
+        <item name="android:statusBarColor">@color/background_darker</item>
+        <item name="android:navigationBarColor">@color/background_darker</item>
+        
+        <!-- Background colors -->
+        <item name="android:colorBackground">@color/background_dark</item>
+        
+        <!-- Text colors -->
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="android:textColorHint">@color/text_hint</item>
+    </style>
+
+    <style name="Theme.SecretChat.Starting" parent="Theme.SplashScreen">
+        <!-- Set your splash background (could be a color or a drawable) -->
+        <item name="windowSplashScreenBackground">@color/background_darker</item>
+        <!-- Use the custom layer-list drawable combining your vectors -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_screen</item>
+        <!-- Optional: if you want to change icon scaling -->
+        <!-- <item name="windowSplashScreenIconBackgroundColor">@color/your_icon_bg_color</item> -->
+        <!-- Theme to apply after the splash screen -->
+        <item name="postSplashScreenTheme">@style/Theme.SecretChat</item>
+    </style>
 </resources>

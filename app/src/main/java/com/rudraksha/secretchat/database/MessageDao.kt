@@ -4,7 +4,8 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import com.rudraksha.secretchat.data.model.MessageEntity
+import com.rudraksha.secretchat.data.entity.MessageEntity
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MessageDao {
@@ -20,7 +21,16 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp DESC")
     suspend fun getMessagesForChat(chatId: String): List<MessageEntity>?
 
-//    @Delete(entity = Message::class)
-//    suspend fun deleteMessage(id: String)
+    @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp ASC")
+    fun getMessagesByChatId(chatId: String): Flow<List<MessageEntity>>
+
+    @Query("UPDATE messages SET isRead = :isRead WHERE messageId = :messageId")
+    suspend fun updateMessageReadStatus(messageId: String, isRead: Boolean)
+
+    @Query("UPDATE messages SET content = :content WHERE messageId = :messageId")
+    suspend fun updateMessage(content: String, messageId: String)
+
+    @Query("DELETE FROM messages WHERE messageId = :messageId")
+    suspend fun deleteMessage(messageId: String)
 }
 

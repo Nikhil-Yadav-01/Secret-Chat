@@ -18,12 +18,6 @@ sealed class Routes(val route: String) {
     data object Home: Routes("home")
 
     @Serializable
-    data object SelectMembers: Routes("create")
-
-    @Serializable
-    data object Calls: Routes("calls")
-
-    @Serializable
     data object Chat: Routes("chat")
 
     @Serializable
@@ -31,6 +25,15 @@ sealed class Routes(val route: String) {
 
     @Serializable
     data object InvisibleChat: Routes("invisible_chat")
+
+    @Serializable
+    data object SelectMembers: Routes("create")
+
+    @Serializable
+    data object CallLogs: Routes("call_logs")
+
+    @Serializable
+    data object Calling: Routes("calling")
 
     @Serializable
     data object Settings: Routes("settings")

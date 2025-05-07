@@ -6,10 +6,10 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.rudraksha.secretchat.data.converters.Converters
-import com.rudraksha.secretchat.data.model.ChatEntity
-import com.rudraksha.secretchat.data.model.UserEntity
-import com.rudraksha.secretchat.data.model.MessageEntity
-import com.rudraksha.secretchat.data.model.Contact
+import com.rudraksha.secretchat.data.entity.ChatEntity
+import com.rudraksha.secretchat.data.entity.UserEntity
+import com.rudraksha.secretchat.data.entity.MessageEntity
+import com.rudraksha.secretchat.data.entity.Contact
 
 @TypeConverters(Converters::class)
 @Database(entities = [MessageEntity::class, ChatEntity::class, UserEntity::class, Contact::class], version = 1, exportSchema = false)

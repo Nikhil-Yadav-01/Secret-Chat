@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Sacred Geometry as the background layer -->
+    <item android:drawable="@drawable/pattern_sacred" />
+    <!-- Network pattern for subtle security/connectivity vibe -->
+    <item android:drawable="@drawable/pattern_network" />
+    <!-- Dots pattern for an extra layer of encryption/security feel -->
+    <item android:drawable="@drawable/pattern_dots" />
+    <!-- The app logo on top -->
+    <item android:drawable="@drawable/logo_secret_chat" />
+</layer-list>

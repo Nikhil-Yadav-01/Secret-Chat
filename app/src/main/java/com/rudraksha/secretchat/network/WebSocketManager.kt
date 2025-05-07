@@ -1,13 +1,14 @@
-package com.rudraksha.secretchat.data.remote
+package com.rudraksha.secretchat.network
 
 import android.util.Log
 import com.rudraksha.secretchat.data.WebSocketData
-import com.rudraksha.secretchat.data.model.FileMetadata
+import com.rudraksha.secretchat.data.entity.FileMetadata
 import com.rudraksha.secretchat.data.webSocketDataModule
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.webSocketSession
+import io.ktor.http.HttpMethod
 import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame
 import io.ktor.websocket.WebSocketSession
@@ -30,6 +31,7 @@ import java.io.File
 class WebSocketManager(
     val username: String = "default",
     private val password: String = "default",
+    private val token: String? = null
 ) {
     private val client = HttpClient(OkHttp) {
         engine { }
@@ -50,7 +52,6 @@ class WebSocketManager(
 
     private val _isConnected = MutableStateFlow(false)
     val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
-//    private var connectionJob: Job? = null
 
     fun connect() {
         scope.launch {
@@ -68,10 +69,33 @@ class WebSocketManager(
 
                     // Establish new WebSocket connection
                     Log.d("WebSocket", "🌐 Attempting to connect to WebSocket...")
-                    webSocketSession = client.webSocketSession(
-//                        host = HOST, port = PORT, path = "chat/${username}/${password}"
-                        urlString = "wss://chat-server-h5u5.onrender.com/chat/${username}/${password}"
-                    )
+                    
+                    // Choose connection method based on available authentication
+                    webSocketSession = if (token != null && token.isNotEmpty()) {
+                        // Connect with JWT token
+                        Log.d("WebSocket", "Connecting with JWT token authentication to ${ApiConfig.wsHost}:${ApiConfig.wsPort}")
+                        client.webSocketSession(
+                            method = HttpMethod.Get,
+                            host = ApiConfig.wsHost,
+                            port = ApiConfig.wsPort,
+                            path = ApiConfig.WEBSOCKET_ENDPOINT
+                        ) {
+                            headers.append("Authorization", "Bearer $token")
+                        }
+                    } else if (username.isNotEmpty() && password.isNotEmpty()) {
+                        // Connect with username/password
+                        Log.d("WebSocket", "Connecting with username/password authentication to ${ApiConfig.wsHost}:${ApiConfig.wsPort}")
+                        client.webSocketSession(
+                            method = HttpMethod.Get,
+                            host = ApiConfig.wsHost,
+                            port = ApiConfig.wsPort,
+                            path = ApiConfig.getWebSocketPath(username, password)
+                        )
+                    } else {
+                        // No valid authentication
+                        Log.e("WebSocket", "No valid authentication provided")
+                        throw IllegalStateException("No valid authentication credentials provided")
+                    }
 
                     _isConnected.value = true
                     Log.d("WebSocket", "✅ WebSocket connected successfully!")
@@ -166,7 +190,7 @@ class WebSocketManager(
         onDataReceived = listener
     }
 
-    suspend fun sendFile(file: File, recipient: String) {
+    suspend fun sendFile(file: File, chatId: String, recipientIds: List<String>) {
         val fileSize = file.length()
         val chunkSize = 1024 * 64 // 64 KB per chunk
         val totalChunks = (fileSize + chunkSize - 1) / chunkSize
@@ -177,18 +201,16 @@ class WebSocketManager(
             totalChunks = totalChunks
         )
 
-        // Send metadata first as a JSON message
-//        webSocketSession?.send(
-//            Frame.Text(
-//                Json.encodeToString(
-//                    Message(
-//                        senderId = username,
-//                        receiversId = listOf(recipient).joinToString(","),
-//                        content = Json.encodeToString(fileMetadata),
-//                    )
-//                )
-//            )
-//        )
+        // First send metadata as a message
+        val fileMessage = WebSocketData.Message(
+            sender = username,
+            receivers = recipientIds,
+            chatId = chatId,
+            content = "FILE_TRANSFER", // Special marker for file transfer
+            timestamp = System.currentTimeMillis()
+        )
+
+        sendData(fileMessage)
 
         // Read the file in chunks and send via WebSocket
         file.inputStream().use { inputStream ->
@@ -196,20 +218,27 @@ class WebSocketManager(
             var bytesRead: Int
             var chunkIndex = 0
 
-            while ( inputStream.read(buffer).also { bytesRead = it } != -1) {
+            while (inputStream.read(buffer).also { bytesRead = it } != -1) {
                 chunkIndex++
                 val chunkData = buffer.copyOf(bytesRead)
                 webSocketSession?.send(Frame.Binary(true, chunkData))
-                println("📤 Sent chunk $chunkIndex/$totalChunks")
+                Log.d("WebSocket", "📤 Sent chunk $chunkIndex/$totalChunks")
+                delay(100) // Small delay to avoid overwhelming the connection
             }
         }
     }
 
     suspend fun disconnect() {
-//        connectionJob?.cancel()
         webSocketSession?.close(
-            CloseReason(CloseReason.Codes.NORMAL, "Disconnecting the client")
+            CloseReason(CloseReason.Codes.NORMAL, "Client disconnecting")
         )
+        _isConnected.value = false
+    }
+
+    fun cleanup() {
+        scope.launch {
+            disconnect()
+            client.close()
+        }
     }
 }
-
